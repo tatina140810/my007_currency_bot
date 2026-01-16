@@ -1,0 +1,55 @@
+=== СТРАНИЦА 1 (83,237 байт) ===
+
+15/01/26-18:39:24 PrinterRsk-6393-000001 1
+Laie thetanes ‘Type and, Teénemisesen eee
+Notification (Transmission) of Original sent to SWIFT (ACK)
+Network Delivery Status! Network Ack
+Pricity/belivery i Normal
+RrscEse’(Rpue Reference : 1836 26011558SVKG22NKxx4760360730
+= Message Header wa cieesaata te
+Swift Input: PIN 103 Single Customer Gredt Transfer
+Sender! SESVRGZ2XXX
+OuSC ELDIK BANK
+BISHKER KG
+Receiver t GENODEFFXXX
+D2 BANK AG DEUTSCHE ZENTRAL-GENOSSENSCHAFTSBANK
+FRANKFURT AM MAIN DE
+UBTR : 3098fced3-caa2-4167-95a3-Gd23b2122680
+= Banna SEL ISRIILA==+ Mesaage Text -—<--a2~ saan
+20: Sender's Reference
+260115/004/195
+23B: Bank Operation Code
+CRED
+32a: Val Dte/Curr/Interbnk Settid amt
+Date : 15 January 2026
+Currency + EUR (EURO)
+Amount, : #69436, 564
+SOK: Ordering Customer-Name & Address
+/1290043130835653
+S00 SARA TREYD
+/KYRGYZSTAN,G. BISHKEK OKTYABRSKIY
+RON MKR 5D. 42 KV. 67
+53B: Sender's Correspondent -Location
+7130463
+S57A: Account With Institution -~ FI BIC
+BCITITM
+INTESA SANPAOLO SPA
+HEAD OFFICE
+MILANO IT
+59: Beneficiary Customer-Name & Addr
+/174450306953240100000001676
+PPM INDUSTRIES S.P.A.
+ADRES: VIA G.TERZI DI S.AGATA 23, 24
+030 BREMBATE SOPRA (BG), ITALY
+70: Remittance Information _ F 5
+PAYMENT FOR MASKING TAPES ACC.TO CO]
+NTR.NO.PIS6 DD 06.11.2025 AND INVOT =
+CE NO.V1252488 DD 13.11.2025 -
+71B: Details of Charge
+CCR: 7 a.
+{CHK:913703FCEAOB} E
+= ‘PKI Signature: MA ;
+a - a
+csr a 7
+E. i) i
+y

@@ -1,0 +1,52 @@
+=== СТРАНИЦА 1 (87,248 байт) ===
+
+15/02/26-18:39:14 printerRsk-#392~000001 a
+eee ee eee
+ap eenneuunennes Inetance Type and Tranktission —a7= = aes
+Nogldieation (Transmission) of Original sent to SWIFT (ACK)
+Notifiv@belivery statua + Network Ack
+Priority/Delivery : Normal
+Briority/Delivegference ! 1836 26011 5SESVKG22AXKK47 60360729
+Recthenh beet ‘Message Header —<==a—=onceeeeeeamen nae
+Seize input FIN 103 Single Customer Credt Transfer
+Sender: SESVKG22XXX
+OuSC_ELDIK BANK
+BISHKEK KG
+Receiver : GENODEFFXXX
+Sa BANK AG DEUTSCHE ZENTRAL-GENOSSENSCHAF TSBANK
+FRANKFURT AM MAIN DE
+DETR ; 91841f1b-25e0-445c-b8dd-e485b406159d
+eee eee anna neenmnene! Meme ge Sit) 2am ast oe ae eee
+20: Sender's Reference
+260115/004/194
+238: Bank Operation Code
+CRED
+32A: Val Dte/Curr/Interbnk Settld Amt
+Date : 15 January 2026
+currency : EUR (EURO)
+Amount : #16864, 81%
+SOK: Ordering Customer-Name & Address
+/1290043130835653
+SOO SARA TREYD
+;RYRGYZSTAN,G. BISHKEK OKTYABRSKTY
+RON MKR 5 D. 42 KV. 67
+53B: Sender's Correspondent -Location
+/130463
+57A: Account With Institution - FI BIC
+UNCRITMMMCS
+UNICREDIT SPA
+CIB OPERATIONAL BRANCH ROME
+ROMA IT
+59: Beneficiary Customer-Name & Addr
+‘/142340200805351000030094487 =
+RICHARD GINORI S.R.L. ‘
+ADRES:VIALE GIULIO CESARE 50 50019 at
+‘SESTO FIORENTINO FI (IT) ITALY ee
+ie: ‘tance Info t ol
+107 SSSHENT FOR :
+0 [CE NO DV: z
+‘TiBs | pete ° g
+rt c:: Se ee
+teak: 880F0348B07E —
+ey ce
+ih ig

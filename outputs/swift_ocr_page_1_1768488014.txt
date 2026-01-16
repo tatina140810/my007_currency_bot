@@ -1,0 +1,53 @@
+=== СТРАНИЦА 1 (90,888 байт) ===
+
+15/01/26-18:38:54 printerRsk-8390-000001 a
+anne act thetance Type and Tranamiasion <—<--2-——=————
+Sotigication (Tranamission) of Original sent to SWIFT (ACK)
+Noresie Delivery Status: Network Ack
+Priority/Delivery + Normal
+EFLOrity (pee Rererence { 1636 26011 5SESVKG2ZAKKKA 760360727
+ee ecncenes=se= MABBAG@ | HOMGME) simmers alee
+‘Geir input: FIN 103 Single Customer Credt Transfer
+Sender SESVKG22XXX
+OuSC _ELDIK BANK
+BISHKEK KG
+Receiver ! SOLADESTXRX
+LANDESBANK BADEN-WUERTTEMBERG
+STUTTGART DE
+DETR : $b57b067-06dd-40a5-abe3-63c983cbd570
+onan nner Nana ge) Peet aaa
+20: Sender's Reference
+260115/004/192
+238: Bank Operation Code
+CRED
+32A: Val Dte/Curr/Interbnk Settld Amt
+Date 215 January 2026
+Currency : EUR (EURO)
+Amount : 478730, 00F
+SOK: Ordering Customer-Name & Address
+71290043130835653
+S00 SARA TREYD
+/EYRGYZSTAN,G. BISHKEK OKTYABRSKIY
+RN MKR 5D, 42 KV. 67
+538: Sender's Correspondent -Location
+{2809735
+S57A: Account With Institution - FI BIC
+COBADEFFAXX
+COMMERZBANK AG
+FRANKFURT AM MAIN DE
+59: Beneficiary Customer-Name & Addr
+(/DE82100400000492407200
+‘TIM-AUTOMOBILE INH.TATIANA ZYKINA
+ADRES:OTTO-SUHR-ALLEE 17, DE-10585
+BERLIN, GERMANY
+70: Remittance Information = om
+PREPAYMENT FOR ROTARY HEAD (ROTATOR
+) acc.TO CONTR. NO. THAS DD 05.01.202 a
+6 AND PROFORMA INVOICE NO.2026-01-0
+5-BR-1 DD 05.01.2026 “N
+1A: Details of Charges %
+OUR i 7
+Wo nwawnnnonannnnannnannn= Message Trailer ee
+(CHK: 8F8E90B09079) 4 =
+PKI Signature: MAC-Equivalent "
+iS co lh

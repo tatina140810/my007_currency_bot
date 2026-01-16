@@ -1,0 +1,94 @@
+=== СТРАНИЦА 1 (105,312 байт) ===
+
+15/01/26-19: 46148 PrinterBAKAY-2717-000001 1
+
+ 
+
+ 
+
+         
+
+ 
+
+   
+
+Instance Type and Transmissio: Bs
+jotification (Tranemission) of Original to SWIFT (ACK)
+Network Delivery Status : Network Ack
+Priority/Delivery + Normal
+Message Input Reference : 1946 260115BAKAKG22AX%X%6633659292
+aseoeee Message Header a
+swift Input IN 103 Single Customer Credt Transfer
+Sender + BAKAKG22XxX
+BAKAI BANK OJSC
+BISHKEK KG
+
+  
+
+Receiver : SOLADESTXXX
+LANDESBANK BADEN-HUERT’
+STUTTGART DE
+VETR : b94a3b72-£214-41f0-9aad—c601212£7£a5
+=== a === Message Text --~-- -
+20: Sender's Reference
+BA260115-4242
+23B: Bank Operation Code
+CRED
+32A: Val Dte/Curr/Interbnk Settld Amt
+Date 15 January 2026
+Currency EUR (EURO)
+Amount 5 #9522, 768
+Ordering Customer-Name & Address
+71240020001886250
+1/ULUSH EXPRESS LLC
+2/OSMONKULOVA STR., 191
+3/KG/BISHKEK
+6/KG/TXID/03101202510040
+Account With Institution - FI BIC
+GENODEF 1882
+HAMBURGER VOLKSBANK EG
+HAMBURG DE
+59: Beneficiary Customer-Name & Addr
+7DE31201900030003143503
+NEXPORT GMBH
+GERMANY, HAMBURG, 22763, C/O ARGO,
+STEUERBERATUNGSGESELLSCHAFT MBH FR
+IESENWEG, 2A
+70: Remittance Information
+PMNT. FOR TRANSPORT SERVICES (FROZE
+N FRUITS) ACC.TO AGMT NEX13 DD 13.0
+1.2026 AND INV.UE-2026-001,002 DD
+13.01.2026 (AIR TRANSPORTATION)
+71a: Details of Charges
+our
+
+ 
+
+BERG
+
+     
+
+ 
+
+ 
+
+50K
+
+ 
+
+  
+
+ 
+
+ 
+
+   
+
+Message Trailer
+
+ 
+
+ 
+
+{CHK:EF26BF5A3C58)
+PKI Signature: MAC-Equivalent

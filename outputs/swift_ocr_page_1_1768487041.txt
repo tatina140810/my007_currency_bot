@@ -1,0 +1,50 @@
+=== СТРАНИЦА 1 (104,090 байт) ===
+
+15/01/26-19:42:06 printerBAKAY-2699-000001 3
+wanna Inatance Type and Transmission 2
+Notification (Tranamisaion) of Original sent to SWIFT (ACK)
+Network Delivery Status + Network Ack
+priority/Delivery : Normal
+sri erse Enput Reverence | 1941 260115BAKAKG22AxxX6633659274
+onan Message Header 2
+Swift Input; FIN 103 Single Customer Credt Transfer
+Sender BAKAKG22XXX
+BAKAT BANK OJSC
+BISHKEK KG
+Receiver : SOLADESTXXX
+LANDESBANK  BADEN-WUERTTEMBERG
+STUITGART DE
+UETR : 62905846-£212-41£0-9aad-5£03046b797£
+aan nn nnn nn n= ====-= Message Text wanwnnnnn= “oe
+20: Sender's Reference
+BA260115-4216
+23B: Bank Operation Code
+CRED
+32A: Val Dte/Curr/Interbnk Settld Amt
+Date : 18 January 2026
+Currency : EUR (EURO)
+Amount : #42162, 784
+50K: Ordering Customer-Name & Address
+71240020002140975
+1/LLC SARA TRADE
+2/5-MICRODISTR., 42, 67
+3/KG/BISHKEK
+6/KG/TXID/02908202510171
+S7A: Account With Institution - FI BIC
+GENODEF 1HH2
+HAMBURGER VOLKSBANK EG
+HAMBURG DE
+59: Beneficiary Customer-Name & Addr
+/DE31201900030003143503
+NEXPORT GMBH
+GERMANY, HAMBURG, 22763, C/O ARGO
+STEUERBERATUNGSGESELLSCHAFT MBH
+FRIESENWEG, 2A
+70: Remittance Information SS ona SAG OAK
+TO CNIR.NO.NG21 DD 21.10.25 and TV" [Log
+| NO.ST-2026-002 DD 15.01.2026 } 45 -O1 2008
+71a: Details of Charges aot
+OUR wun Bren ogmIONT,
+a eee essage) Trai tex eee eet
+{CHK:FAB9E947377) Y
+PKI Signature: MAC-Equivalent
