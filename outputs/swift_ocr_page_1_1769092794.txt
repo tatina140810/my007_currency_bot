@@ -1,0 +1,63 @@
+=== СТРАНИЦА 1 (164,368 байт) ===
+
+22/01/26-14:49:39 PrinterBAKAY-5146-000001 1 Eke
+ae
+i re pet ance: type ond Trenenission ——
+Notification (Transmission) of Original sent to SWIFTNet (ACK)
+| Network Delivery Status : Network Ack
+| Priority/Delivery : Normal
+Message! input Reference : 1449 260122bakakg22_generic001088000000591
+Se eee ees eae vansnge Headee =m ene
+MX Input 7 pace 008,001.08 CBPRPlus-pacs .008.001 .08_FIToFICustomercy
+edittransfer
+| Responder DN : ousxxx, omsoladest, omswift
+| User Reference: BA260122-1083617
+| UETR . 4661b67a-a360-47b3~aa02~82abaScabid2
+| Service Name : swift. finplus
+| Non-repudiation Indicator: False
+| None Rerarence: awi01001-2026-01-22708:49:33.41015 . 50005092
+| wie Request Reference: SNL5S1478-2026-01-22T08: 49:33. 2694058 0868982
+cht Reference: 58955f£c6-£76b-41£0-9aa4-99c7694a4a57
+/ Store-and-forward Input Time: 0102:2026-01-22T08: 49:33
+Signing DN: cn=bakakg, o=bakakg22, o-swift
+Tappdr xmine-"urn:isoretd:iso:20022:tech:xsd:head. 001-001 .02"?
+<Er>
+<FIId>
+<FinInstnid>
+<BICFI>BAKAKG22</BICFI>
+</FinInstntd>
+<To>
+<FIId>
+</fininstnid>
+</FITd>
+</To>
+<BizMsgIdr>BA260122-1083617</BizMsgidr>
+<MsgbefIdr>pacs 008.001, 08</MsgbefIdr>
+<pizSvc>swift . cbprplus.03</BizSvc> aa
+serepe>2026-01-22T14 :09:57.1294169+06:00</CreDt> Ena
+<pssblDplct>false</PssblDplet> Wouse eBarafeanne
+<Prty>NORM</Prty> rg CAN
+</AppHdr> 22 9 tes | 2
+sipeement. xmlns="urn:iso:std:iso:20022:tech:xsd:pags -0 O8">
+CPITOFICstmrcdtTrf> re, ee
+<GrpHdr> suede, en woenynn, 96.
+<MsgId>BA260122-1083617</Msgid>
+Ecrept Tm>2026-01-22T14:09:57.1294169+06:00</CreDt Tm
+<NbO£TxXS>1</NbOfTxS>
+<sttlmInf>
+<Stt lmMtd>INDA</SttlmMtd>
+</sttlmint>
+</GrpHdr>
+<CdtTrf£TxInf>
+<Pmt Id>
+<InstrId>BA260122-1083617</Instrid>
+<EndToEndId>NOTPROVIDED</EndToEndId>
+cuBTRS 4661b67a-d360-47b3-aa02—-B2abaSe2b1d2</UETR>
+</PmtId>
+<Pmt TpIn£>
+<Inst rPrty>NORM</InstrPrty>
+<SveLvl>
+<Cd>G001</Cd>
+</SveLvl>
+</PmtTpIn£>
+<IntrBkSttlmAmt Ccy="BUR">32938 .00</IntrBksttimAmt>

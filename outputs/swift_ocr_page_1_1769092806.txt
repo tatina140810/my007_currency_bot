@@ -1,0 +1,48 @@
+=== СТРАНИЦА 1 (119,934 байт) ===
+
+crntrBksttinDt>2026-01-22</IntrBkStt InDt> :
+22/01/26-14:49:39 PrinterBAKAY-5146~000001 z
+GEnstannt. Coy="EUR">32930,00</Inetaamt>
+SGhegbrsbEBT</chrgBr>
+<tnsegagt>
+<Pintnstntd>
+<BICE IS BAKAKG22</BICE1>
+<instaage>
+<BICE I> SOLADEST</BICFT>
+<ppte>
+ENMSLLC "SARA TRADE"</Nm>
+<Patiadr>
+SpldgNb>42</BidgNb>
+<Room>67</Room>
+<ctry>Ke</ctry>
+<casTxzD</Ca>
+</bbtr>
+<Id>1240020002140975</td>
+</othr> :
+</td> 2) gielacs les
+</bbtracct> aa 128\
+<Dbt rAgt> [ny slash Ca
+<FinInstniId> Cham |
+<BICF 1>BAKAKG22</BICFI> _Baaiaaeiong,
+</FinInstnId> a
+</Dbtragt>
+<catragt>
+<Fininstnid>
+<BICFI>REVOLT21</BICFI>
+</FinInstnid>
+</Catragt>
+<cdtr>
+<Nm>ASTEURO INTERNATIONAL BV</Nm>
+<Pst lAdr>
+<StrtNm>123 KOUTER</StrtNm>
+<BldgNb>-</BldgNb>
+<TwnNm>9000 GENT</TwnNm>
+<Ctry>BE</Ctry>
+</PstlAdr>
+</Cdtr>
+<CdtrAcct>
+<Id>
+<IBAN>LT383250086665915914</IBAN>
+</Id>
+</CdtrAcct>
+<Rmt Inf>

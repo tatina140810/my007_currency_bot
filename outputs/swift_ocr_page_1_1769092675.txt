@@ -1,0 +1,70 @@
+=== СТРАНИЦА 1 (174,271 байт) ===
+
+seawny=4472-00000% —— LESH a
+a
+ms
+21/01/26-11:15:20 PrinterBAKAY-4448-000001 zt =
+eee ee ne nnnnaee----=- Instance Type and Transmission ~~~--~—--~--<— ies
+Solizigavion (Feanamiesion) of Original sent to SHIFTS (ACK) :
+Notifieeeiivery status: Network Ack ;
+peigeiey/belivery t Normal
+Rlgige’{nput Reference | Lii8 z6o12ibakakg22_genersc001087000000480 :
+Gk inpue ? pace 008,001.08 CBPRP1us-paca 008.001 .08_F1ToF icustomerCe
+editrransfer E
+Mee eestor DN + oumxxx, onbakakg22, onswitt :
+Rectonder DN } Guawur, onsoladest ,omowift
+User Reference: BA260120-1081988,
+UEER | esceos£6-e3ca~4346-8631-b7Sdefd0829a
+Service Nane : swift. finplus
+Non-repudiation Indicator! False
+SnrEr Reference: owi01001-2026-01-21T05 :15:11..42827.21423072
+SWIFT Request Reference: SNLS1478-2026-01-21T05:15:10.2894058 0693302
+cat Reference: c63fcf3e-£605~41£0-9aai—fbalbai3ce18
+Storesand-forward Input Time: 0102:2026-01-21705:15:11
+Signing DN: cnebakakg, o-bakakg22, omswift
+cere een ee eseage Text. ~-—~--—--m ae
+ZApplidr xmina="urn:iso:std:iso:20022;tech:xed:head. 001 .001-02">
+<Er>
+<erta>
+<Fininstntd>
+<BICEISBAKAKG22</BICFI>
+</Fininstnid>
+</Fita>
+</Er>
+<to>
+<FIza>
+<Fintnstnid>
+<BICFI>SOLADEST</BICEI> _ ee
+</FinInstnId> renin
+</Eitd> SA NAAN
+</To> @= 23
+<BizMsgIdr>BA260120-1081988</BizMsgIidr>
+<MsgbefIdr>pacs .008 .001.08</MsgDefldr>
+<BizSvc>swift .cbprplus .03</BizSvc> EAR ARNOT og
+<CreDt>2026-01-21T10:53:48.9051751+06:00</CreDt> wan es
+<PssblDplct>false</PssblDplct> <Bue
+<Prty>NORM</Prty>
+</appiidz>
+<Document xmins="urn:iso:std:iso:20022:tech:xsd:pacs.008.001.08">
+<FITOFICstmzCdt Trf>
+<GrpHdr>
+<MsgId>BA260120-1081988</MsgId>
+<CreDtTm>2026-01-21T10:53:48.9051751+06:00</CreDtTm>
+<NbOfTxs>1</NbOfTxs>
+<sttIminf>
+<SttlmMtd>INDA</SttlmMtd>
+</sttlmInf>
+</GrpHdr>
+<CdtTrfTxInf>
+<PmtId>
+<InstrId>BA260120-1081988</Instrid>
+<EndToEndId>NOTPROVIDED</EndToEndId>
+<UETR>65cc99f6-e3ca~4346-8631-b7 5dcfd0829a</UETR>
+</PmtId>
+<Pmt TpInf>
+<InstrPrty>NORM</InstrPrty>
+<SvcLvl>
+<Cd>G001</Cd>
+</SvcLyl>
+" </PmtTpInf>
+7 <IntrBkSttlmAmt Ccy="EUR">118028.80</IntrBkStt lmAmt>
