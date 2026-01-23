@@ -43,6 +43,77 @@ from ocr_advanced import run_ocr_from_image_bytes
 from swift_parser_improved import parse_swift_text
 
 KG_TZ = ZoneInfo("Asia/Bishkek")
+CHAT_ALIASES = {
+
+    "Арм": ["арм", "arm"],
+    "ГРАНИТ ГРУПП": ["гранит", "гранит групп", "granit"],
+    "Сан Тропе групп": ["сан тропе", "santrope", "san trope"],
+    "ЕВРАЗИЯ РЕСУРС": ["евразия", "евразия ресурс", "eurasia"],
+    "Локал": ["локал", "local"],
+    "Соода КЖ": ["соода", "sooda", "соода кж"],
+    "VR GROUP": ["vr", "vr group"],
+    "ИЛР Салют групп": ["илр", "салют", "ilr"],
+    "Профлайн": ["профлайн", "proflin", "profile"],
+    "Руб нерез": ["руб нерез", "нерез", "rub nerez"],
+    "Документы Локал": ["док локал", "документы локал"],
+    "Группа КОСВЕЛЛ": ["косвелл", "kosvell"],
+    "Хуагэ Москва": ["хуагэ", "huage"],
+    "МИНСК": ["минск", "minsk"],
+    "Бутчер": ["бутчер", "butcher"],
+    "Поставки из Китая": ["китай", "поставки", "china"],
+    "Трейд Шоп": ["трейд", "trade shop"],
+    "Группа ВЭД ББ": ["вэд", "ved"],
+    "Карина": ["карина", "karina"],
+    "Аскар": ["аскар", "askar"],
+    "China Ru": ["china ru", "чайна"],
+    "Карвен групп": ["карвен", "karven"],
+    "Брокер": ["брокер", "broker"],
+    "Center Tex FI": ["center tex", "tex"],
+    "Шеф": ["шеф", "chef"],
+    "Нарго групп": ["нарго", "nargo"],
+    "Тим": ["тим", "team"],
+    "Милан - ТезКадам Бакай Банк": ["милан", "тезкадам", "bakai"],
+    "Каню": ["каню", "kanyu"],
+    "Автокит": ["автокит", "autokit"],
+    "Вояж групп": ["вояж", "voyage"],
+    "Сергей Москва": ["сергей москва", "сергей"],
+    "Дельмар": ["дельмар", "delmar"],
+    "Barracuda": ["barracuda", "барракуда"],
+    "tatinadz": ["tatina", "татина"],
+    "ТиР - FinInfra": ["тир", "fininfra"],
+    "УЗ": ["уз", "uз", "uz", "у з"],
+    "УФА": ["уфа", "ufa"],
+    "ЭКСПО": ["экспо", "expo"],
+    "Денис Биш": ["денис", "denis", "денис биш"],
+    "Группа Иван": ["иван", "ivan"],
+    "НРК": ["нрк", "nrk"],
+    "Гармин": ["гармин", "garmin"],
+    "Тамеки КЖ": ["тамеки", "tameki"],
+    "Киргизия 2.0": ["киргизия", "kg 2.0"],
+    "РД": ["рд", "rd"],
+    "Амбер Платинум": ["амбер", "amber"],
+    "Медигрупп": ["меди", "medigroup", "медигрупп"],
+    "Barracuda и Adonai": ["adonai", "барракуда адонай"],
+    "Сокол": ["сокол", "sokol"],
+    "ИЛЬ": ["иль", "il"],
+    "КЬЮБ": ["кьюб", "cube"],
+    "КЕША": ["кеша", "kesha"],
+    "Фин.инфра-СЗ": ["фин инфра", "fininfra sz"],
+    "АБАТ СТОР": ["абат", "abat"],
+    "Евро Авто": ["евро авто", "euro auto"],
+    "ВОРД": ["ворд", "word"],
+    "Влата": ["влата", "vlata"],
+    "Али": ["али", "ali"],
+    "АТЕКС": ["атекс", "atex"],
+    "Грузин": ["грузин", "gruzin"],
+    "Марат групп": ["марат", "marat"],
+    "АКА групп": ["ака", "aka"],
+    "РФ ДЕН": ["рф ден", "rf den"],
+    "Сергей евро": ["сергей евро", "sergey euro"],
+    "Группа Антилопа": ["антилопа", "antilope"],
+    "ДЕЛЬТА": ["дельта", "delta"],
+}
+
 
 # Настройка логирования
 logging.basicConfig(
@@ -116,6 +187,19 @@ async def cmd_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("\n".join(lines), parse_mode=None)
 
+def normalize_group_name(name: str) -> str:
+    if not name:
+        return ""
+
+    n = name.strip().lower()
+
+    for canonical, aliases in CHAT_ALIASES.items():
+        if n == canonical.lower():
+            return canonical
+        if n in [a.lower() for a in aliases]:
+            return canonical
+
+    return name.strip()
 
 def is_staff(user_id: int | None) -> bool:
     return user_id is not None and user_id in TEAM_MEMBER_IDS
@@ -438,6 +522,8 @@ def parse_bulk_pp_payments(text: str):
       company = ТезКадам / Умут Трейд / ...
       group   = УЗ / Денис / Медигрупп (для распределения по телеграм-группам/Excel)
     """
+    group_name = normalize_group_name(group_name)
+
 
     lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
     items = []
@@ -723,6 +809,9 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
     user = update.effective_user
     chat = update.effective_chat
+    group_name = normalize_group_name(group_name)
+    target_chat_id = db.get_chat_id_by_name(group_name)
+
 
     if not all([message, user, chat]) or user.is_bot or not message.text:
         return
