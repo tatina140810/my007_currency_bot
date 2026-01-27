@@ -42,9 +42,14 @@ from auto_reply_bot import (
 from ocr_advanced import run_ocr_from_image_bytes
 from swift_parser_improved import parse_swift_text
 
-KG_TZ = ZoneInfo("Asia/Bishkek")
-CHAT_ALIASES = {
+# ============================================================
+# КОНФИГУРАЦИЯ
+# ============================================================
 
+GROUP_TAG_RE = re.compile(r"^\s*\[(.+?)\]\s*(.*)$")
+KG_TZ = ZoneInfo("Asia/Bishkek")
+
+CHAT_ALIASES = {
     "Арм": ["арм", "arm"],
     "ГРАНИТ ГРУПП": ["гранит", "гранит групп", "granit"],
     "Сан Тропе групп": ["сан тропе", "santrope", "san trope"],
@@ -114,8 +119,10 @@ CHAT_ALIASES = {
     "ДЕЛЬТА": ["дельта", "delta"],
 }
 
+# ============================================================
+# ЛОГИРОВАНИЕ
+# ============================================================
 
-# Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
@@ -124,7 +131,14 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("apscheduler").setLevel(logging.WARNING)
 logging.getLogger("telegram").setLevel(logging.WARNING)
 logging.getLogger("telegram.ext").setLevel(logging.WARNING)
+# ✅ Подавляем таймауты при остановке
+logging.getLogger("telegram.ext.Updater").setLevel(logging.CRITICAL)
+
 logger = logging.getLogger(__name__)
+
+# ============================================================
+# ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+# ============================================================
 
 db = Database()
 
@@ -142,119 +156,103 @@ MEDIA_GROUP_WAIT = 1.2
 COMMISSION_PERCENT = 0.01
 BANK_REQUEST_FEE = 65.0
 
-async def error_handler(update, context):
-    logger.exception("Unhandled exception", exc_info=context.error)
-
-async def debug_list_chats(context, db):
-    chats = db.get_all_chats()  # [(chat_id,), ...]
-
-    lines = ["Чаты в базе:"]
-
-    for (chat_id,) in chats:
-        try:
-            chat = await context.bot.get_chat(chat_id)
-            title = chat.title or chat.username or "Без названия"
-            lines.append(f"{chat_id} → {title}")
-        except Exception as e:
-            logger.warning(f"Chat {chat_id} недоступен: {e}")
-            lines.append(f"{chat_id} → ❌ недоступен")
-
-    return "\n".join(lines)
-
-async def cmd_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-
-    if not is_staff(user.id):
-        return
-
-    chats = db.get_all_chats()  # ожидаем [(chat_id, ...)]
-    logger.info(f"/chats raw data: {chats}")
-
-    if not chats:
-        await update.message.reply_text("Группы не найдены.")
-        return
-
-    lines = ["📋 Чаты в базе:"]
-
-    for row in chats:
-        chat_id = row[0]
-        try:
-            chat = await context.bot.get_chat(chat_id)
-            title = chat.title or chat.username or f"ID {chat_id}"
-            lines.append(f"• {title}")
-        except Exception:
-            lines.append(f"• ID {chat_id} (недоступен)")
-
-    await update.message.reply_text("\n".join(lines), parse_mode=None)
-
-def normalize_group_name(name: str) -> str:
-    if not name:
-        return ""
-
-    n = name.strip().lower()
-
-    for canonical, aliases in CHAT_ALIASES.items():
-        if n == canonical.lower():
-            return canonical
-        if n in [a.lower() for a in aliases]:
-            return canonical
-
-    return name.strip()
-
-def is_staff(user_id: int | None) -> bool:
-    return user_id is not None and user_id in TEAM_MEMBER_IDS
-
-
-async def process_operation_batch():
-    global operation_queue
-    while True:
-        await asyncio.sleep(0.5)
-        async with queue_lock:
-            if not operation_queue:
-                continue
-            queue_snapshot = dict(operation_queue)
-
-        for chat_id, operations in queue_snapshot.items():
-            try:
-                for op in operations:
-                    db.add_operation(
-                        chat_id,
-                        op["type"],
-                        op["currency"],
-                        op["amount"],
-                        op["description"],
-                    )
-                async with queue_lock:
-                    operation_queue.pop(chat_id, None)
-                invalidate_balance_cache(chat_id)
-                logger.info(f"Обработано {len(operations)} операций для чата {chat_id}")
-            except Exception:
-                logger.exception(f"Ошибка записи операций для чата {chat_id}")
-
-
-async def queue_operation(
-    chat_id: int, op_type: str, currency: str, amount: float, description: str = ""
-):
-    async with queue_lock:
-        operation_queue[chat_id].append({
-            "type": op_type,
-            "currency": currency,
-            "amount": amount,
-            "description": description,
-        })
-
-
 # Кеширование балансов
 balance_cache: Dict[int, Dict[str, float]] = {}
 balance_cache_time: Dict[int, float] = {}
 CACHE_TTL = 5
 
+# ============================================================
+# ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+# ============================================================
+
+def extract_group_tag(text: str) -> tuple[str | None, str]:
+    """
+    Извлекает группу из квадратных скобок.
+    
+    Примеры:
+        "[УЗ] поступили 5000 usdt" → ("УЗ", "поступили 5000 usdt")
+        "поступили 5000 usdt" → (None, "поступили 5000 usdt")
+    """
+    if not text:
+        return None, text
+
+    m = GROUP_TAG_RE.match(text)
+    if not m:
+        return None, text
+
+    group = m.group(1).strip()
+    clean_text = m.group(2).strip()
+    return group, clean_text
+
+
+def normalize_group_name(name: str) -> str:
+    """
+    Нормализует название группы через CHAT_ALIASES.
+    
+    Примеры:
+        "уз" → "УЗ"
+        "uz" → "УЗ"
+        "денис" → "Денис Биш"
+    """
+    if not name:
+        return ""
+
+    n = name.strip().lower()
+
+    # Проверяем каноническое название и все алиасы
+    for canonical, aliases in CHAT_ALIASES.items():
+        if n == canonical.lower():
+            return canonical
+        for alias in aliases:
+            if n == alias.lower():
+                return canonical
+
+    # Если не найдено - возвращаем как есть
+    return name.strip()
+
+
+def is_staff(user_id: int | None) -> bool:
+    """Проверяет является ли пользователь сотрудником"""
+    return user_id is not None and user_id in TEAM_MEMBER_IDS
+
+
+def resolve_target_chat_id(
+    chat,
+    is_private: bool,
+    group_from_manual: str | None = None,
+):
+    """
+    Определяет chat_id для записи операции.
+    
+    Логика:
+    - В личном чате: ТРЕБУЕТСЯ group_from_manual (из [ГРУППА])
+    - В групповом чате: используется текущий chat.id
+    """
+    # ЛИЧНЫЙ ЧАТ
+    if is_private:
+        if not group_from_manual:
+            raise ValueError(
+                "В личном чате нужно указать группу в квадратных скобках.\n"
+                "Пример:\n[УЗ] поступили 5000 usdt"
+            )
+
+        target_chat_id = db.get_chat_id_by_name(group_from_manual)
+        if not target_chat_id:
+            raise ValueError(f"Группа '{group_from_manual}' не найдена")
+
+        return target_chat_id
+
+    # ГРУППОВОЙ ЧАТ
+    return chat.id
+
 
 def get_cached_balance(chat_id: int):
+    """Получает баланс с кешированием"""
     now = datetime.now().timestamp()
     if chat_id in balance_cache:
         if now - balance_cache_time.get(chat_id, 0) < CACHE_TTL:
             return balance_cache[chat_id]
+    
     balances = db.get_balances(chat_id)
     balance_cache[chat_id] = balances
     balance_cache_time[chat_id] = now
@@ -262,11 +260,130 @@ def get_cached_balance(chat_id: int):
 
 
 def invalidate_balance_cache(chat_id: int):
+    """Инвалидирует кеш баланса"""
     balance_cache.pop(chat_id, None)
     balance_cache_time.pop(chat_id, None)
 
 
+def get_chat_id(update: Update) -> int:
+    """Получает ID чата"""
+    return update.effective_chat.id
+
+
+def get_chat_name(update: Update) -> str:
+    """Получает название чата"""
+    chat = update.effective_chat
+    if chat.type == "private":
+        return f"Личный чат с {update.effective_user.first_name}"
+    return chat.title or f"Группа {chat.id}"
+
+
+def parse_timestamp(ts: str | datetime) -> datetime:
+    """Парсит временную метку с часовым поясом"""
+    if isinstance(ts, datetime):
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        return ts.astimezone(KG_TZ)
+    
+    if not ts:
+        return datetime.now(KG_TZ)
+    
+    formats = [
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M",
+        "%Y-%m-%dT%H:%M:%S",
+        "%d.%m.%Y %H:%M",
+        "%d.%m.%Y %H:%M:%S",
+    ]
+    
+    for fmt in formats:
+        try:
+            dt = datetime.strptime(ts, fmt)
+            dt = dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(KG_TZ)
+        except ValueError:
+            continue
+    
+    return datetime.now(KG_TZ)
+
+
+def normalize_currency(curr: str) -> str:
+    """Нормализует валюту (без ошибок USDT → USD)"""
+    if not curr:
+        return ""
+
+    c = curr.strip().lower()
+
+    # убираем точки, запятые и пробелы по краям
+    c = c.replace(".", "").replace(",", "").strip()
+
+    # 🔥 ВАЖНО: USDT проверяем ПЕРВЫМ
+    if c in ("usdt", "тез", "тезер"):
+        return "USDT"
+
+    curr_map = {
+        # RUB
+        "руб": "RUB", "₽": "RUB", "рублей": "RUB", "rub": "RUB", "рубля": "RUB",
+
+        # KGS
+        "сом": "KGS", "сомов": "KGS", "kgs": "KGS",
+
+        # USD
+        "usd": "USD", "долл": "USD", "$": "USD", "дол": "USD",
+        "доллар": "USD", "долларов": "USD", "долларах": "USD",
+
+        # EUR
+        "eur": "EUR", "€": "EUR", "ев": "EUR", "евро": "EUR",
+
+        # KZT
+        "kzt": "KZT", "тенге": "KZT",
+
+        # CNY
+        "cny": "CNY", "yuan": "CNY", "¥": "CNY",
+        "юан": "CNY", "юань": "CNY", "юаней": "CNY", "юани": "CNY", "юаня": "CNY",
+
+        # AED
+        "aed": "AED", "дирхам": "AED", "дирхамов": "AED", "дир": "AED",
+    }
+
+    return curr_map.get(c, c.upper())
+
+
+
+def parse_human_number(s: str) -> float:
+    """Парсит число из человеческого формата"""
+    s = s.strip()
+    s = s.replace("\u00A0", " ")
+    s = re.sub(r"\s+", "", s)
+    
+    has_dot = "." in s
+    has_comma = "," in s
+    
+    if has_dot and has_comma:
+        if s.rfind(",") > s.rfind("."):
+            s = s.replace(".", "").replace(",", ".")
+        else:
+            s = s.replace(",", "")
+        return float(s)
+    
+    if has_dot and not has_comma:
+        if re.fullmatch(r"\d{1,3}(\.\d{3})+", s):
+            s = s.replace(".", "")
+            return float(s)
+        return float(s)
+    
+    if has_comma and not has_dot:
+        if re.fullmatch(r"\d{1,3}(,\d{3})+", s):
+            s = s.replace(",", "")
+            return float(s)
+        s = s.replace(",", ".")
+        return float(s)
+    
+    return float(s)
+
+
 def migrate_legacy_currencies():
+    """Миграция старых валют"""
     try:
         conn = db.get_connection()
         cur = conn.cursor()
@@ -282,259 +399,248 @@ def migrate_legacy_currencies():
         logger.error(f"Ошибка миграции валют: {e}")
 
 
-# Вспомогательные функции
+# ============================================================
+# БАТЧИНГ ОПЕРАЦИЙ
+# ============================================================
 
-def get_chat_id(update: Update) -> int:
-    return update.effective_chat.id
+async def process_operation_batch():
+    """Фоновая задача для обработки очереди операций"""
+    global operation_queue
+    while True:
+        await asyncio.sleep(0.5)
+        
+        async with queue_lock:
+            if not operation_queue:
+                continue
+            queue_snapshot = dict(operation_queue)
 
-
-def get_chat_name(update: Update) -> str:
-    chat = update.effective_chat
-    if chat.type == "private":
-        return f"Личный чат с {update.effective_user.first_name}"
-    return chat.title or f"Группа {chat.id}"
-
-
-def parse_timestamp(ts: str | datetime) -> datetime:
-    if isinstance(ts, datetime):
-        if ts.tzinfo is None:
-            ts = ts.replace(tzinfo=timezone.utc)
-        return ts.astimezone(KG_TZ)
-    if not ts:
-        return datetime.now(KG_TZ)
-    formats = [
-        "%Y-%m-%d %H:%M:%S",
-        "%Y-%m-%d %H:%M",
-        "%Y-%m-%dT%H:%M:%S",
-        "%d.%m.%Y %H:%M",
-        "%d.%m.%Y %H:%M:%S",
-    ]
-    for fmt in formats:
-        try:
-            dt = datetime.strptime(ts, fmt)
-            dt = dt.replace(tzinfo=timezone.utc)
-            return dt.astimezone(KG_TZ)
-        except ValueError:
-            continue
-    return datetime.now(KG_TZ)
+        for chat_id, operations in queue_snapshot.items():
+            try:
+                for op in operations:
+                    db.add_operation(
+                        chat_id,
+                        op["type"],
+                        op["currency"],
+                        op["amount"],
+                        op["description"],
+                    )
+                
+                async with queue_lock:
+                    operation_queue.pop(chat_id, None)
+                
+                invalidate_balance_cache(chat_id)
+                logger.info(f"Обработано {len(operations)} операций для чата {chat_id}")
+            except Exception:
+                logger.exception(f"Ошибка записи операций для чата {chat_id}")
 
 
-def normalize_currency(curr: str) -> str:
-    c = curr.strip().lower()
-    curr_map = {
-        "руб": "RUB", "руб.": "RUB", "₽": "RUB", "рублей": "RUB", "rub": "RUB", "рубля": "RUB",
-        "сом": "KGS", "сомов": "KGS", "kgs": "KGS",
-        "usd": "USD", "долл": "USD", "$": "USD", "долл.": "USD", "дол": "USD", "д": "USD",
-        "доллар": "USD", "долларов": "USD", "долларах": "USD",
-        "usdt": "USDT", "тез": "USDT", "тезер": "USDT",
-        "eur": "EUR", "ев": "EUR", "€": "EUR", "евро": "EUR",
-        "kzt": "KZT", "тенге": "KZT",
-        "cny": "CNY", "yuan": "CNY", "¥": "CNY",
-        "юан": "CNY", "юань": "CNY", "ю": "CNY", "юань.": "CNY",
-        "юаней": "CNY", "юани": "CNY", "юаня": "CNY",
-        "aed": "AED", "дирхам": "AED", "дирхамов": "AED", "дир": "AED",
-    }
-    return curr_map.get(c, c.upper())
+async def queue_operation(
+    chat_id: int, 
+    op_type: str, 
+    currency: str, 
+    amount: float, 
+    description: str = ""
+):
+    """Добавляет операцию в очередь"""
+    async with queue_lock:
+        operation_queue[chat_id].append({
+            "type": op_type,
+            "currency": currency,
+            "amount": amount,
+            "description": description,
+        })
 
+
+# ============================================================
+# ПАРСИНГ ОПЕРАЦИЙ
+# ============================================================
 
 def parse_income_notification(text: str):
+    """
+    Парсит уведомление о поступлении.
+    """
     if not text:
         return None
+
     low = text.lower()
+
+    # Ключевые слова поступления
     if not any(kw in low for kw in (
         "поступил", "поступили", "поступление",
         "зачислен", "зачислены", "зачисление",
     )):
         return None
+
     m = re.search(
-        r"(?P<amount>\d[\d\s]*[.,]\d{2})\s*"
-        r"(?P<curr>руб(?:\.|лей)?|сом(?:ов)?|kgs|usd|eur|rub|kzt|cny|долл\.?|дол)",
+        r"(?P<amount>\d[\d\s]*(?:[.,]\d{1,2})?)\s*"
+        r"(?P<curr>руб(?:\.|лей)?|сом(?:ов)?|kgs|usdt|usd|eur|rub|kzt|cny|юань?|долл?\.?|тез(?:ер)?|aed|дирх(?:ам)?)",
         text,
         re.IGNORECASE,
     )
+
     if not m:
         return None
+
     amount_str = m.group("amount")
-    curr_raw = m.group("curr")
+
     try:
-        amount = float(amount_str.replace(" ", "").replace(",", "."))
-    except ValueError:
-        return None
-    currency = normalize_currency(curr_raw)
-    return {"amount": amount, "currency": currency, "description": text.strip()}
-
-
-def compute_conversion_to_amount(amount: float, rate: float, from_curr: str, to_curr: str) -> float:
-    weak = {"RUB", "KGS", "KZT", "CNY"}
-    strong = {"USD", "USDT", "EUR", "AED"}
-    if rate <= 0:
-        raise ValueError("Курс должен быть > 0")
-    from_weak = from_curr in weak
-    from_strong = from_curr in strong
-    to_weak = to_curr in weak
-    to_strong = to_curr in strong
-    if from_strong and to_weak:
-        return amount * rate
-    if from_weak and to_strong:
-        return amount / rate
-    if from_weak and to_weak:
-        return amount * rate
-    if from_strong and to_strong:
-        return amount * rate
-    return amount * rate
-
-
-def parse_human_number(s: str) -> float:
-    s = s.strip()
-    s = s.replace("\u00A0", " ")
-    s = re.sub(r"\s+", "", s)
-    has_dot = "." in s
-    has_comma = "," in s
-    if has_dot and has_comma:
-        if s.rfind(",") > s.rfind("."):
-            s = s.replace(".", "").replace(",", ".")
+        if '.' not in amount_str and ',' not in amount_str:
+            amount = float(amount_str.replace(' ', '').replace('\u00A0', ''))
         else:
-            s = s.replace(",", "")
-        return float(s)
-    if has_dot and not has_comma:
-        if re.fullmatch(r"\d{1,3}(\.\d{3})+", s):
-            s = s.replace(".", "")
-            return float(s)
-        return float(s)
-    if has_comma and not has_dot:
-        if re.fullmatch(r"\d{1,3}(,\d{3})+", s):
-            s = s.replace(",", "")
-            return float(s)
-        s = s.replace(",", ".")
-        return float(s)
-    return float(s)
+            amount = parse_human_number(amount_str)
+    except ValueError:
+        logger.warning(f"Не удалось распарсить сумму: '{amount_str}'")
+        return None
+
+    raw_curr = m.group("curr").lower()
+
+    # 🔥 КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ
+    if raw_curr in ("usdt", "тез", "тезер"):
+        currency = "USDT"
+    else:
+        currency = normalize_currency(raw_curr)
+
+    return {
+        "amount": amount,
+        "currency": currency,
+        "description": text.strip(),
+    }
 
 
-def parse_manual_operation_line(text: str):
+def parse_manual_operation_line(text: str) -> dict | None:
+    """
+    Парсит РУЧНЫЕ операции.
+    ГРУППА определяется СНАРУЖИ через [ГРУППА].
+    """
     if not text:
         return None
 
-    VALID_CURRENCIES = {
-        "USD", "EUR", "RUB", "KGS", "CNY", "KZT", "AED", "USDT"
-    }
+    t = text.lower().strip()
 
-    def parse_rate(s: str) -> float:
-        s = s.strip().replace(",", ".")
-        return float(s)
-
-    original = re.sub(r"\s+", " ", text.strip())
-    low = original.lower()
-
-    # --------------------------------------------------
-    # КОНВЕРТАЦИЯ (фикс)
-    # --------------------------------------------------
-    if re.search(r"\bфикс\b", low):
-        logger.info("   Обнаружено слово 'фикс', парсим конвертацию...")
-        s = original
-
-        fix_patterns = [
-            r"^фикс\s+(?P<amount>[\d\s.,]+)\s+(?P<from>\S{1,6})\s+(?P<rate>[\d.,]+)\s+(?P<to>\S{1,6})(?P<desc>.*)$",
-            r"^(?P<amount>[\d\s.,]+)\s+(?P<from>\S{1,6})\s+(?P<rate>[\d.,]+)\s+(?P<to>\S{1,6})\s+фикс(?P<desc>.*)$",
-        ]
-
-        m = None
-        for p in fix_patterns:
-            m = re.match(p, s, flags=re.IGNORECASE)
-            if m:
-                break
-
-        if not m:
-            logger.warning(f"   Не удалось распарсить конвертацию: '{original}'")
-            return None
-
-        amount_str = m.group("amount")
-        from_raw = m.group("from")
-        rate_str = m.group("rate")
-        to_raw = m.group("to")
-        desc = (m.group("desc") or "").strip()
-
-        try:
-            amount = parse_human_number(amount_str)
-            rate = parse_rate(rate_str)
-        except ValueError as e:
-            logger.warning(f"   Ошибка парсинга чисел: {e}")
-            return None
-
-        from_curr = normalize_currency(from_raw)
-        to_curr = normalize_currency(to_raw)
-
-        # 🔒 ЖЁСТКАЯ ПРОВЕРКА ВАЛЮТ
-        if from_curr not in VALID_CURRENCIES:
-            logger.warning(f"   Некорректная валюта ИЗ: {from_curr}")
-            return None
-
-        if to_curr not in VALID_CURRENCIES:
-            logger.warning(f"   Некорректная валюта В: {to_curr}")
-            return None
-
-        if from_curr == to_curr:
-            logger.warning(f"   Одинаковые валюты: {from_curr}")
-            return None
-
-        desc = re.sub(r"\bфикс\b", "", desc, flags=re.IGNORECASE).strip()
-
-        logger.info(
-            f"   Распознано: {amount} {from_curr} -> {to_curr} (курс {rate})"
-        )
-
+    # --------------------
+    # ПОСТУПЛЕНИЕ (ручное)
+    # --------------------
+    m = re.search(
+        r"(поступили|поступило|пришли)\s+([\d\s.,]+)\s+([a-zа-я$€¥]{2,6})",
+        t,
+    )
+    if m:
         return {
-            "type": "Конвертация",
-            "amount": amount,
-            "currency": from_curr,
-            "to_amount": None,
-            "to_currency": to_curr,
-            "rate": rate,
-            "description": desc,
-            "swift_amount": None,
-            "swift_currency": None,
+            "type": "Поступление",
+            "amount": parse_human_number(m.group(2)),
+            "currency": normalize_currency(m.group(3)),
+            "description": "Поступление (ручное)",
         }
 
-    # --------------------------------------------------
-    # ОСТАЛЬНЫЕ ТИПЫ (без изменений)
-    # --------------------------------------------------
+    # --------------------
+    # ВЗНОС НАЛИЧНЫМИ
+    # --------------------
+    m = re.search(
+        r"(взнос\s+наличными)\s+([\d\s.,]+)\s+([a-zа-я$€¥]{2,6})",
+        t,
+    )
+    if m:
+        return {
+            "type": "Взнос наличными",
+            "amount": parse_human_number(m.group(2)),
+            "currency": normalize_currency(m.group(3)),
+            "description": "Взнос наличными",
+        }
 
-    # Оплата ПП, Возврат, Взнос, Выдача, Запрос банку
-    # 👉 оставляй как есть (у тебя они корректные)
+    # --------------------
+    # ВЫДАЧА
+    # --------------------
+    m = re.search(
+        r"(выдача|выдали|выдано)\s+([\d\s.,]+)\s+([a-zа-я$€¥]{2,6})",
+        t,
+    )
+    if m:
+        return {
+            "type": "Выдача наличных",
+            "amount": parse_human_number(m.group(2)),
+            "currency": normalize_currency(m.group(3)),
+            "description": "Выдача",
+        }
+
+    # --------------------
+    # ОПЛАТА ПП
+    # --------------------
+    m = re.search(
+        r"(оплата\s*пп)\s+([\d\s.,]+)\s+([a-zа-я$€¥]{2,6})",
+        t,
+    )
+    if m:
+        return {
+            "type": "Оплата ПП",
+            "amount": parse_human_number(m.group(2)),
+            "currency": normalize_currency(m.group(3)),
+            "description": "Оплата ПП",
+        }
+
+    # --------------------
+    # ФИКС (КОНВЕРТАЦИЯ)
+    # пример: фикс 200 usd 80.4 rub
+    # --------------------
+    m = re.search(
+        r"фикс\s+([\d\s.,]+)\s+([a-z]{3,5})\s+([\d\s.,]+)\s+([a-z]{3,5})",
+        t,
+    )
+    if m:
+        return {
+            "type": "Конвертация",
+            "amount": parse_human_number(m.group(1)),
+            "currency": normalize_currency(m.group(2)),
+            "rate": parse_human_number(m.group(3)),
+            "to_currency": normalize_currency(m.group(4)),
+            "description": "Фикс",
+        }
+
+    # --------------------
+    # ХАРБОР КОМИССИЯ
+    # --------------------
+    m = re.search(
+        r"(харбор\s+комиссия)\s+([\d\s.,]+)\s+([a-zа-я$€¥]{2,6})",
+        t,
+    )
+    if m:
+        return {
+            "type": "Комиссия",
+            "amount": parse_human_number(m.group(2)),
+            "currency": normalize_currency(m.group(3)),
+            "description": "Харбор комиссия",
+        }
+
+    # --------------------
+    # ЗАПРОС БАНКУ (фиксированная комиссия)
+    # --------------------
+    m = re.search(
+        r"(запрос\s+банку)\s+([\d\s.,]+)\s+([a-zа-я$€¥]{2,6})",
+        t,
+    )
+    if m:
+        return {
+            "type": "Комиссия",
+            "amount": parse_human_number(m.group(2)),
+            "currency": normalize_currency(m.group(3)),
+            "description": "Запрос банку",
+        }
 
     return None
 
 
-def parse_bulk_pp_payments(text: str):
-    """
-    Парсит сообщение вида:
+def parse_bulk_pp_payments(clean_text: str):
+    """Парсит bulk-списки платежей"""
+    if not clean_text:
+        return []
 
-    ТезКадам :
-    1  Дельмар  Shenzhen ...  172000= CNY
-    2  УЗ  HEBEI ...  248637-50 CNY
-
-    Умут Трейд
-    1  Денис Биш  ...  19484-88 USD
-    ...
-
-    Возвращает list[dict] с keys:
-      company, group, receiver, amount, currency
-    где:
-      company = ТезКадам / Умут Трейд / ...
-      group   = УЗ / Денис / Медигрупп (для распределения по телеграм-группам/Excel)
-    """
-    group_name = normalize_group_name(group_name)
-
-
-    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    lines = [ln.strip() for ln in clean_text.splitlines() if ln.strip()]
     items = []
     current_company = None
 
-    # Заголовок секции (компания): строка без суммы/валюты и без "1 ..."
-    # На практике у тебя это "ТезКадам :", "Умут Трейд", "Сара Трейд:", "Дея Групп (Возврат)"
-    company_header_re = re.compile(r"^[А-Яа-яA-Za-z0-9().\- ]{2,}:\s*$|^[А-Яа-яA-Za-z0-9().\- ]{2,}$")
+    company_header_re = re.compile(
+        r"^[А-Яа-яA-Za-z0-9().\- ]{2,}:\s*$|^[А-Яа-яA-Za-z0-9().\- ]{2,}$"
+    )
 
-    # Строка платежа:
-    # 1  УЗ  HEBEI ...  248637-50 CNY
     pay_re = re.compile(
         r"^\s*(\d+)\s+(.+?)\s{2,}(.+?)\s{2,}([0-9][0-9=\-., ]*)\s+([A-Z]{3})\s*$"
     )
@@ -542,9 +648,8 @@ def parse_bulk_pp_payments(text: str):
     def norm_group(raw: str) -> str:
         raw = (raw or "").strip()
         low = raw.lower()
-        # Алиасы под твои группы
         if low.startswith("денис"):
-            return "Денис"
+            return "Денис Биш"
         if low.startswith("уз"):
             return "УЗ"
         if low.startswith("медигрупп"):
@@ -552,19 +657,13 @@ def parse_bulk_pp_payments(text: str):
         return raw
 
     def parse_amount(raw: str) -> float:
-        # "172000=" -> "172000"
-        s = raw.strip().replace("=", "")
-        s = s.replace(" ", "")
-        # "248637-50" -> "248637.50"
+        s = raw.strip().replace("=", "").replace(" ", "")
         if "-" in s and s.count("-") == 1 and s.rsplit("-", 1)[1].isdigit():
             left, right = s.rsplit("-", 1)
             s = f"{left}.{right}"
-        # "12,345.67" or "12.345,67" — сделаем мягко
-        # если есть и ',' и '.', считаем что ',' = тысячи → убираем ','
         if "," in s and "." in s:
             s = s.replace(",", "")
         else:
-            # если только ',' — пусть будет десятичной
             s = s.replace(",", ".")
         return float(s)
 
@@ -578,64 +677,60 @@ def parse_bulk_pp_payments(text: str):
 
             items.append({
                 "company": current_company or "",
-                "group": group_name,          # <-- ВАЖНО: УЗ/Денис/Медигрупп
-                "receiver": receiver.strip(), # контрагент/получатель
+                "group": group_name,
+                "receiver": receiver.strip(),
                 "amount": amount,
                 "currency": currency,
             })
             continue
 
-        # если это не платеж — возможно заголовок секции
-        # чуть фильтруем, чтобы не перехватить "Список платежей..."
         if "список платежей" in ln.lower():
             continue
 
-        # заголовок компании
         if company_header_re.match(ln):
-            # убираем двоеточие на конце
             current_company = ln.rstrip(":").strip()
             continue
 
     return items
 
 
-def extract_rate_from_text(text: str) -> float | None:
-    if not text:
-        return None
-    m = re.search(r"1\s+[A-Za-z]{3}\s*=\s*([\d\s.,]+)\s+[A-Za-z]{3}", text, re.IGNORECASE)
-    if m:
-        num = m.group(1)
-        try:
-            return float(num.replace(" ", "").replace(",", "."))
-        except ValueError:
-            pass
-    m = re.search(r"[Кк][Уу][Рр][Сс][^0-9]{0,10}([\d\s.,]+)", text, re.IGNORECASE)
-    if m:
-        num = m.group(1)
-        try:
-            return float(num.replace(" ", "").replace(",", "."))
-        except ValueError:
-            pass
-    m = re.search(r"(\d[\d\s]*[.,]\d+)", text)
-    if m:
-        num = m.group(1)
-        try:
-            return float(num.replace(" ", "").replace(",", "."))
-        except ValueError:
-            pass
-    return None
+def compute_conversion_to_amount(amount: float, rate: float, from_curr: str, to_curr: str) -> float:
+    """Вычисляет сумму конвертации"""
+    weak = {"RUB", "KGS", "KZT", "CNY"}
+    strong = {"USD", "USDT", "EUR", "AED"}
+    
+    if rate <= 0:
+        raise ValueError("Курс должен быть > 0")
+    
+    from_weak = from_curr in weak
+    from_strong = from_curr in strong
+    to_weak = to_curr in weak
+    to_strong = to_curr in strong
+    
+    if from_strong and to_weak:
+        return amount * rate
+    if from_weak and to_strong:
+        return amount / rate
+    if from_weak and to_weak:
+        return amount * rate
+    if from_strong and to_strong:
+        return amount * rate
+    
+    return amount * rate
 
+
+# ============================================================
+# SWIFT ОБРАБОТКА
+# ============================================================
 
 def quick_swift_check(text: str) -> bool:
-    """Быстрая проверка: похоже ли на SWIFT/MX (pacs.008 и т.п.)."""
+    """Быстрая проверка: похоже ли на SWIFT/MX"""
     if not text:
         return False
 
     t = text.lower()
 
-    # если это MX/XML — часто есть теги
     if "<" in t and ">" in t:
-        # ключевые слова/теги, которые почти всегда встречаются в pacs/Swift распечатках
         keys = (
             "pacs.008", "cbprplus", "fitoficstmr", "bizmsgidr", "msgdefidr",
             "bicfi", "uetr", "intrbksttlmamt", "instdamt", "chrgbr",
@@ -643,15 +738,27 @@ def quick_swift_check(text: str) -> bool:
         )
         return any(k in t for k in keys)
 
-    # если OCR вытащил без < > — всё равно по словам
     keys2 = ("swiftnet", "uetr", "bicfi", "pacs.008", "cbprplus", "msgdefidr")
     return any(k in t for k in keys2)
 
 
-# ===== ОБРАБОТКА ФОТО (SWIFT) =====
+_SWIFT_TAG_RE = re.compile(r"<\s*[\w:.-]+(?:\s+[^>]*)?>|</\s*[\w:.-]+\s*>")
+
+
+def has_swift_xml_tags(text: str) -> bool:
+    """Проверяет наличие SWIFT XML тегов"""
+    if not text:
+        return False
+    
+    if "<" in text and ">" in text and _SWIFT_TAG_RE.search(text):
+        return True
+    
+    markers = ("UETR", "Dbtr", "Cdtr", "Ccy", "Amt", "IntrBkSttlmAmt", "MsgId")
+    return any(m in text for m in markers)
+
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Тихая обработка SWIFT с поддержкой альбомов."""
+    """Обработка фото с поддержкой альбомов"""
     message = update.effective_message
     if not message or not message.photo:
         return
@@ -688,7 +795,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def _process_swift_pages(pages_bytes: list[bytes], message):
-    """Обработка страниц SWIFT - КАЖДАЯ СТРАНИЦА ОТДЕЛЬНО."""
+    """Обработка страниц SWIFT"""
     start_time = time.time()
     logger.info(f"SWIFT: страниц в пачке = {len(pages_bytes)}")
 
@@ -697,7 +804,6 @@ async def _process_swift_pages(pages_bytes: list[bytes], message):
 
     success_count = 0
 
-    # КАЖДАЯ СТРАНИЦА ОБРАБАТЫВАЕТСЯ ОТДЕЛЬНО
     for idx, b in enumerate(pages_bytes, 1):
         page_start = time.time()
 
@@ -705,11 +811,10 @@ async def _process_swift_pages(pages_bytes: list[bytes], message):
         logger.info(f"  Страница {idx}: запуск OCR...")
 
         try:
-            # ✅ УЛУЧШЕННЫЙ OCR БЕЗ EASYOCR (экономия места)
             quick_text = await asyncio.to_thread(
                 run_ocr_from_image_bytes,
                 b,
-                use_easyocr=False  # БЕЗ EasyOCR (экономия 1.4GB)
+                use_easyocr=False
             )
             logger.info(f"  Страница {idx}: OCR завершён - {len(quick_text)} символов ({time.time()-page_start:.2f}с)")
         except Exception as e:
@@ -732,7 +837,7 @@ async def _process_swift_pages(pages_bytes: list[bytes], message):
             logger.info(f"  Страница {idx}: общее время {time.time()-page_start:.2f}с")
             continue
 
-        # ПАРСИМ КАЖДУЮ СТРАНИЦУ ОТДЕЛЬНО
+        # Парсинг
         parse_start = time.time()
         logger.info(f"  Страница {idx}: начинаю парсинг...")
 
@@ -741,11 +846,9 @@ async def _process_swift_pages(pages_bytes: list[bytes], message):
         logger.info(f"  Страница {idx}: время парсинга {time.time()-parse_start:.2f}с")
 
         if swift_msg:
-            # ОТПРАВЛЯЕМ СРАЗУ (не ждём остальные страницы)
             page_time = time.time() - page_start
             logger.info(f"  Страница {idx}: успешно распознана за {page_time:.1f}с")
 
-            # Добавляем номер страницы если их много
             if len(pages_bytes) > 1:
                 swift_msg = f"Страница {idx}/{len(pages_bytes)}\n\n{swift_msg}"
 
@@ -764,24 +867,15 @@ async def _process_swift_pages(pages_bytes: list[bytes], message):
         logger.info(f"SWIFT: ни одна страница не распознана (время: {total_time:.1f}с)")
 
 
-_SWIFT_TAG_RE = re.compile(r"<\s*[\w:.-]+(?:\s+[^>]*)?>|</\s*[\w:.-]+\s*>")
+# ============================================================
+# ОБРАБОТКА ТЕКСТА
+# ============================================================
 
-
-def has_swift_xml_tags(text: str) -> bool:
-    if not text:
-        return False
-    # простая эвристика: видим xml-теги или типичные маркеры
-    if "<" in text and ">" in text and _SWIFT_TAG_RE.search(text):
-        return True
-    markers = ("UETR", "Dbtr", "Cdtr", "Ccy", "Amt", "IntrBkSttlmAmt", "MsgId")
-    return any(m in text for m in markers)
-
-
-# ===== ОБРАБОТКА ТЕКСТА =====
 def looks_like_bank_income(text: str) -> bool:
+    """Проверяет похоже ли сообщение на банковское поступление"""
     t = (text or "").lower()
 
-    # ❗ ИСКЛЮЧАЕМ РУЧНЫЕ ОПЕРАЦИИ (НЕ БАНКОВСКИЕ УВЕДОМЛЕНИЯ)
+    # ИСКЛЮЧАЕМ ручные операции
     if t.startswith(("оплата", "взнос", "выдача", "фикс", "запрос")):
         return False
 
@@ -799,276 +893,178 @@ def looks_like_bank_income(text: str) -> bool:
 
     has_currency = any(k in t for k in (
         "руб", "rub", "usd", "eur", "сом", "kgs",
-        "cny", "kzt", "aed", "¥", "€", "$", "₽"
+        "cny", "kzt", "aed", "¥", "€", "$", "₽", "usdt"
     ))
 
     return (has_income_words and has_currency) or (has_bank_markers and has_currency)
 
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     message = update.effective_message
     user = update.effective_user
     chat = update.effective_chat
-    group_name = normalize_group_name(group_name)
-    target_chat_id = db.get_chat_id_by_name(group_name)
 
+    if not message or not user or not chat:
+        return
 
-    if not all([message, user, chat]) or user.is_bot or not message.text:
+    if user.is_bot or not message.text:
         return
 
     text = message.text.strip()
-
     is_private = chat.type == "private"
     staff = is_staff(user.id)
 
-    # ------------------------------------------------------------
-    # 🔐 РАЗРЕШАЕМ ТОЛЬКО /clear all, остальные команды игнорируем
-    # ------------------------------------------------------------
+    logger.info(
+        f"MSG chat={chat.id} user={user.id} private={is_private} text='{text[:100]}'"
+    )
+
+    # 1️⃣ КОМАНДЫ (кроме /clear all)
     if text.startswith("/") and text.lower() != "/clear all":
         return
 
+    # 2️⃣ РЕГИСТРАЦИЯ ЧАТА
     chat_name = chat.title or chat.first_name or f"Чат {chat.id}"
     db.register_chat(chat.id, chat_name, chat.type)
 
-    logger.info(
-        f"Получено сообщение: chat_id={chat.id} "
-        f"user_id={user.id} private={is_private} "
-        f"text='{text[:80]}'"
-    )
-
-    # ------------------------------------------------------------
-    # 🔥 CLEAR — ПОЛНАЯ ОЧИСТКА БАЗЫ
-    # команда: /clear all
-    # ------------------------------------------------------------
+    # 3️⃣ CLEAR ALL (ТОЛЬКО STAFF + ЛИЧКА)
     if is_private and staff and text.lower() == "/clear all":
-        logger.warning(f"‼ CLEAR DATABASE by user {user.id}")
-
-        try:
-            db.clear_all()
-
-            # сбрасываем кеши
-            balance_cache.clear()
-            balance_cache_time.clear()
-
-            await message.reply_text(
-                "База данных полностью очищена.",
-                parse_mode=None
-            )
-        except Exception:
-            logger.exception("Ошибка очистки БД")
-            await message.reply_text(
-                "Ошибка при очистке базы данных.",
-                parse_mode=None
-            )
+        db.clear_all()
+        balance_cache.clear()
+        balance_cache_time.clear()
+        await message.reply_text("База очищена.")
         return
+    # 4️⃣ ИЗВЛЕЧЕНИЕ ГРУППЫ ИЗ [ГРУППА] (ТОЛЬКО В ЛИЧКЕ)
+    group_name = None
+    clean_text = text
 
-    # если ждём подтверждения удаления — не мешаем
-    if "pending_undo_op_id" in context.user_data:
-        return
+    if is_private:
+        group_tag, clean_text = extract_group_tag(text)
+        if group_tag:
+            # Нормализуем группу
+            group_name = normalize_group_name(group_tag)
+            logger.info(f"📋 Извлечена группа: '{group_tag}' → '{group_name}'")
 
-    # ------------------------------------------------------------
-    # 0) АВТО-ПОСТУПЛЕНИЯ (ТОЛЬКО В ГРУППАХ)
-    # ------------------------------------------------------------
-    if not is_private and (staff or looks_like_bank_income(text)):
-        income = parse_income_notification(text)
-        if income:
-            await queue_operation(
-                chat.id,
-                "Поступление",
-                income["currency"],
-                income["amount"],
-                income["description"],
-            )
-            logger.info(
-                f"Авто-Поступление: {income['amount']} "
-                f"{income['currency']} в чате {chat.id}"
-            )
+    # 5️⃣ АВТО-ПОСТУПЛЕНИЯ (БАНК)
+    if looks_like_bank_income(clean_text):
+
+        income = parse_income_notification(clean_text)
+        if not income:
             return
 
-    # ------------------------------------------------------------
-    # 1) BULK «ОПЛАТА ПП» — ТОЛЬКО STAFF
-    # ------------------------------------------------------------
-    if staff:
-        bulk_payments = parse_bulk_pp_payments(text)
-        if bulk_payments:
-            created = 0
-            skipped = []
-            errors = []
-
-            for item in bulk_payments:
-                try:
-                    group_name = item["group"]
-                    target_chat_id = db.get_chat_id_by_name(group_name)
-
-                    if not target_chat_id:
-                        skipped.append(group_name)
-                        continue
-
-                    company = item.get("company", "").strip()
-                    receiver = item.get("receiver", "").strip()
-                    description = (
-                        f"{company} | {receiver}" if company else receiver
-                    )
-
-                    await queue_operation(
-                        target_chat_id,
-                        "Оплата ПП",
-                        item["currency"],
-                        -item["amount"],
-                        description,
-                    )
-                    created += 1
-
-                except Exception as e:
-                    logger.exception(f"Bulk ПП ошибка: {e}")
-                    errors.append(group_name)
-
-            reply = f"Распознано оплат ПП: {created}"
-            if skipped:
-                reply += f"\nНе найдены группы: {', '.join(set(skipped))}"
-            if errors:
-                reply += f"\nОшибки: {', '.join(set(errors))}"
-
-            await message.reply_text(reply, parse_mode=None)
-            return
-
-    # ------------------------------------------------------------
-    # 2) STAFF: SWIFT + РУЧНЫЕ ОПЕРАЦИИ
-    # ------------------------------------------------------------
-    if staff:
-        # ---------- SWIFT ----------
-        if has_swift_xml_tags(text):
-            try:
-                swift_msg = parse_swift_text(text)
-            except Exception as e:
-                logger.exception(f"SWIFT ошибка: {e}")
-                swift_msg = None
-
-            if swift_msg:
-                await message.reply_text(swift_msg, parse_mode=None)
-                return
-
-        # ---------- РУЧНОЙ ПАРСИНГ ----------
-        manual = parse_manual_operation_line(text)
-        if not manual:
-            return
-
-        # ---------- ЦЕЛЕВОЙ ЧАТ ----------
-        chat_id = chat.id
-
+        # Личка - группа обязательна
         if is_private:
-            desc, group_name = extract_group_from_description(
-                manual["description"]
-            )
-
             if not group_name:
+                await message.reply_text(
+                    "❗ В личном чате укажи группу ПЕРЕД сообщением.\n"
+                    "Пример:\n[УЗ] поступили 5000 usdt"
+                )
                 return
 
             target_chat_id = db.get_chat_id_by_name(group_name)
             if not target_chat_id:
+                await message.reply_text(f"❌ Группа '{group_name}' не найдена")
                 return
+        else:
+            # Группа - пишем в текущий чат
+            target_chat_id = chat.id
 
-            manual["description"] = desc or "Операция из личного чата"
-            chat_id = target_chat_id
+        await queue_operation(
+            target_chat_id,
+            "Поступление",
+            income["currency"],
+            income["amount"],
+            income["description"],
+        )
+        return
 
-        op_type = manual["type"]
-        amount = manual["amount"]
-        currency = manual["currency"]
-        desc = manual["description"]
+        logger.info(
+            f"Поступление: {income['amount']} {income['currency']} → chat {target_chat_id_final}"
+        )
+        return
+    if staff:
+        bulk = parse_bulk_pp_payments(clean_text)
+        if bulk:
+            for item in bulk:
+                target_group = normalize_group_name(item["group"])
+                target_chat_id = db.get_chat_id_by_name(target_group)
+                if not target_chat_id:
+                    continue
 
-        # ---------- ОПЛАТА ПП ----------
-        if op_type == "Оплата ПП":
-            await queue_operation(chat_id, "Оплата ПП", currency, -amount, desc)
-
-            if manual.get("with_commission"):
-                commission = amount * COMMISSION_PERCENT
+                desc = f"{item['company']} | {item['receiver']}"
                 await queue_operation(
-                    chat_id,
-                    "Комиссия 1%",
-                    currency,
-                    -commission,
-                    f"Комиссия ПП: {desc}",
-                )
-
-            if manual.get("swift_amount"):
-                swift_curr = manual.get("swift_currency") or "USD"
-                await queue_operation(
-                    chat_id,
-                    "SWIFT",
-                    swift_curr,
-                    -manual["swift_amount"],
+                    target_chat_id,
+                    "Оплата ПП",
+                    item["currency"],
+                    -item["amount"],
                     desc,
                 )
+            await message.reply_text("✅ Bulk платежи обработаны")
             return
 
-        # ---------- ЗАПРОС БАНКУ ----------
-        if op_type == "Запрос банку":
-            await queue_operation(
-                chat_id, "Запрос банку", "USD", -BANK_REQUEST_FEE, desc
-            )
+    # =====================================================
+    # 3️⃣ SWIFT
+    # =====================================================
+    if staff and has_swift_xml_tags(clean_text):
+        swift_msg = parse_swift_text(clean_text)
+        if swift_msg:
+            await message.reply_text(swift_msg)
             return
 
-        # ---------- КОНВЕРТАЦИЯ ----------
-        if op_type == "Конвертация":
-            from_curr = currency
-            to_curr = manual["to_currency"]
+    # =====================================================
+    # 4️⃣ РУЧНЫЕ ОПЕРАЦИИ
+    # =====================================================
+    if not staff:
+        return
 
-            if manual.get("rate") is not None:
-                rate = manual["rate"]
-            else:
-                reply = message.reply_to_message
-                reply_text = (reply.text or reply.caption) if reply else None
-                if not reply_text:
-                    return
-                rate = extract_rate_from_text(reply_text)
+    manual = parse_manual_operation_line(clean_text)
+    if not manual:
+        return
 
-            if not rate or rate <= 0:
-                return
+    target_chat_id = resolve_target_chat_id(
+        chat=chat,
+        is_private=is_private,
+        group_from_manual=group_name,
+    )
 
-            to_amount = compute_conversion_to_amount(
-                amount, rate, from_curr, to_curr
-            )
+    op_type = manual["type"]
+    amount = manual["amount"]
+    currency = manual["currency"]
+    desc = manual.get("description", "")
 
-            await queue_operation(chat_id, "Конвертация", to_curr, -to_amount, desc)
-            await queue_operation(chat_id, "Конвертация", from_curr, amount, desc)
-            return
+    # --------------------
+    # КОНВЕРТАЦИЯ
+    # --------------------
+    if op_type == "Конвертация":
+        rate = manual["rate"]
+        to_curr = manual["to_currency"]
 
-        # ---------- ВЗНОС ----------
-        if op_type == "Взнос наличными":
-            await queue_operation(chat_id, "Взнос наличными", currency, amount, desc)
-            return
+        to_amount = compute_conversion_to_amount(amount, rate, currency, to_curr)
 
-        # ---------- ВЫДАЧА ----------
-        if op_type == "Выдача наличных":
-            await queue_operation(chat_id, "Выдача наличных", currency, -amount, desc)
-            return
+        await queue_operation(target_chat_id, "Конвертация", currency, -amount, desc)
+        await queue_operation(target_chat_id, "Конвертация", to_curr, to_amount, desc)
+        return
 
-        # ---------- ВОЗВРАТ ----------
-        if op_type == "Возврат по ПП":
-            await queue_operation(chat_id, "Возврат по ПП", currency, amount, desc)
-            return
+    # --------------------
+    # ПРОЧИЕ
+    # --------------------
+    sign = -1 if op_type in ("Выдача наличных", "Оплата ПП", "Комиссия") else 1
 
-    # ------------------------------------------------------------
-    # ВСЁ ОСТАЛЬНОЕ — ИГНОРИРУЕМ
-    # ------------------------------------------------------------
-    return
+    await queue_operation(
+        target_chat_id,
+        op_type,
+        currency,
+        sign * amount,
+        desc,
+    )
 
-
-def extract_group_from_description(desc: str):
-    parts = desc.split()
-    if len(parts) < 2:
-        return desc, None
-
-    candidate = parts[-1]
-    if re.fullmatch(r"[A-Za-zА-Яа-я]{2,}", candidate):
-        return " ".join(parts[:-1]), candidate
-
-    return desc, None
-
-
-# ===== КОМАНДЫ =====
+   
+# ============================================================
+# КОМАНДЫ
+# ============================================================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /start"""
     user = update.effective_user
     chat = update.effective_chat
     chat_name = get_chat_name(update)
@@ -1088,17 +1084,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 Операции в чате (для сотрудников):
 - Поступления: "... 1000,00 руб поступили ..."
-- Оплата ПП: "оплата пп 1000 usd swift 25 описание"
-- С комиссией: "оплата пп 1000 usd удержание комиссии 1% описание"
-- Конвертация: "фикс 1000 usd" (курс из reply) или "фикс 1000 usd 89.5 rub"
 - Взнос: "взнос наличными 5000 usd"
 - Выдача: "выдача наличными 3000 usd"
-- Запрос банку: "запрос банку описание" (65 USD)
+- Возврат: "возврат 1000 usd"
+
+В личном чате используй [ГРУППА]:
+[УЗ] поступили 5000 usdt
 """
     await update.message.reply_text(base_text, parse_mode=None)
 
 
 async def show_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /bal"""
     chat = update.effective_chat
     chat_id = get_chat_id(update)
     chat_name = get_chat_name(update)
@@ -1109,6 +1106,7 @@ async def show_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     balances = get_cached_balance(chat_id)
     text = f"БАЛАНС\n{chat_name}\n\n"
     total_exists = False
+    
     for currency in CURRENCIES:
         balance = balances.get(currency, 0.0)
         if balance != 0:
@@ -1126,6 +1124,7 @@ async def show_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def show_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /his"""
     chat = update.effective_chat
     chat_id = get_chat_id(update)
     chat_name = get_chat_name(update)
@@ -1181,6 +1180,7 @@ async def show_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def undo_last_operation(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /del"""
     user = update.effective_user or (update.callback_query and update.callback_query.from_user)
     if not is_staff(user.id):
         if update.callback_query:
@@ -1235,6 +1235,7 @@ async def undo_last_operation(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 async def undo_select_operation(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Callback для выбора операции на удаление"""
     user = update.effective_user or update.callback_query.from_user
     if not is_staff(user.id):
         await update.callback_query.answer("Нет прав", show_alert=True)
@@ -1273,6 +1274,7 @@ async def undo_select_operation(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 async def handle_delete_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработка пароля для удаления"""
     user = update.effective_user
     if not is_staff(user.id):
         return
@@ -1319,6 +1321,7 @@ async def handle_delete_password(update: Update, context: ContextTypes.DEFAULT_T
 
 
 async def cancel_undo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Отмена удаления (callback)"""
     query = update.callback_query
     await query.answer()
     context.user_data.pop("pending_undo_op_id", None)
@@ -1327,6 +1330,7 @@ async def cancel_undo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cancel_any(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /cancel"""
     if "pending_undo_op_id" in context.user_data:
         context.user_data.pop("pending_undo_op_id", None)
         context.user_data.pop("pending_undo_chat_id", None)
@@ -1336,9 +1340,7 @@ async def cancel_any(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def export_operations(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Экспорт операций в Excel"""
-
-    # Получаем полный текст команды
+    """Команда /ex - экспорт в Excel"""
     message_text = update.message.text.strip()
 
     logger.info("=" * 60)
@@ -1351,14 +1353,12 @@ async def export_operations(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_chat_name = chat.title or chat.first_name or f"Чат {chat.id}"
     db.register_chat(chat.id, telegram_chat_name, chat.type)
 
-    # Отправляем сообщение о начале экспорта
     status_msg = await update.message.reply_text("⏳ Формирую файл...", parse_mode=None)
 
-    # ---- парсим дату из ТЕКСТА сообщения (не из context.args) ----
+    # Парсим дату из текста
     date_from = None
     date_to = None
 
-    # Убираем команду и берём остаток
     parts = message_text.split(maxsplit=1)
 
     if len(parts) > 1:
@@ -1367,12 +1367,10 @@ async def export_operations(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         arg_lower = arg.lower()
 
-        # Проверяем "сегодня" или "today"
         if arg_lower in ("сегодня", "today"):
             date_from = date_to = datetime.now(KG_TZ).date()
             logger.info(f"✅ Экспорт за СЕГОДНЯ: {date_from}")
         else:
-            # Пробуем распарсить как дату
             parsed = None
             for fmt in ("%d.%m.%Y", "%Y-%m-%d", "%d.%m.%y"):
                 try:
@@ -1399,7 +1397,7 @@ async def export_operations(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         logger.info("📊 Экспорт за ВСЁ ВРЕМЯ")
 
-    # ---- имя файла ----
+    # Имя файла
     if date_from:
         fname_date = date_from.strftime("%d_%m_%Y")
         filename = f"operations_{fname_date}.xlsx"
@@ -1414,7 +1412,7 @@ async def export_operations(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     logger.info(f"📂 Полный путь: {output_path}")
 
-    # ---- экспорт ----
+    # Экспорт
     try:
         logger.info(f"🔄 Запуск экспорта... (from={date_from}, to={date_to})")
 
@@ -1426,7 +1424,6 @@ async def export_operations(update: Update, context: ContextTypes.DEFAULT_TYPE):
             date_to
         )
 
-        # Проверяем что файл создан
         if not os.path.exists(output_path):
             logger.error(f"❌ Файл не создан: {output_path}")
             await status_msg.edit_text("❌ Ошибка: файл не был создан", parse_mode=None)
@@ -1435,13 +1432,11 @@ async def export_operations(update: Update, context: ContextTypes.DEFAULT_TYPE):
         file_size = os.path.getsize(output_path)
         logger.info(f"✅ Файл создан: размер {file_size} байт")
 
-        # Удаляем статусное сообщение
         try:
             await status_msg.delete()
         except:
             pass
 
-        # Отправляем файл
         with open(output_path, "rb") as file:
             caption_text = datetime.now(KG_TZ).strftime("%d.%m.%Y %H:%M")
             if date_from:
@@ -1472,6 +1467,7 @@ async def export_operations(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /help"""
     chat_name = get_chat_name(update)
     help_text = f"""СПРАВКА
 
@@ -1479,52 +1475,19 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 Команды:
 /bal - Показать баланс
-/his [дата] - История (по датам)
-  Пример: /his 01.12.2025
-/del - Удалить операцию (по паролю)
+/his [дата] - История операций
+/del - Удалить операцию
 /ex - Экспорт в Excel
 /help - Эта справка
 
-Операции в чате (для сотрудников):
+Операции (для сотрудников):
+- Взнос: "взнос наличными 5000 usd"
+- Выдача: "выдача наличными 3000 usd"
+- Возврат: "возврат 1000 usd"
 
-Поступления (автоматически):
-"... 1000,00 руб поступили ..."
-
-Оплата ПП:
-- Без комиссии:
-  оплата пп 1000 usd описание
-  Списывается только 1000 USD
-
-- С комиссией 1%:
-  оплата пп 1000 usd удержание комиссии 1% описание
-  Списывается 1000 + 10 (1%) = 1010 USD
-
-- С SWIFT:
-  оплата пп 1000 usd swift 25 описание
-  Списывается 1000 + 25 SWIFT
-
-- Всё вместе:
-  оплата пп 1000 usd swift 25 удержание комиссии 1% описание
-  Списывается 1000 + 10 (1%) + 25 SWIFT = 1035 USD
-
-Конвертация:
-- С указанием курса:
-  фикс 1000 usd 89.5 rub комментарий
-  Купить 1000 USD за 89500 RUB
-
-- Курс из reply-сообщения:
-  фикс 1000 usd (ответом на сообщение с курсом)
-  Купить 1000 USD за RUB по курсу из сообщения
-
-Взнос наличными:
-взнос наличными 5000 usd описание
-
-Выдача наличными:
-выдача наличными 3000 usd описание
-
-Запрос банку (автоматически 65 USD):
-запрос банку описание
-Списывается 65 USD
+В личном чате используй [ГРУППА]:
+[УЗ] поступили 5000 usdt
+[Денис] выдача наличными 2000 usd
 
 Поддерживаемые валюты:
 USD, EUR, RUB, CNY, KGS, KZT, USDT, AED
@@ -1532,19 +1495,48 @@ USD, EUR, RUB, CNY, KGS, KZT, USDT, AED
     await update.message.reply_text(help_text, parse_mode=None)
 
 
+async def cmd_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /chats - показывает все чаты"""
+    user = update.effective_user
+
+    if not is_staff(user.id):
+        return
+
+    chats = db.get_all_chats()
+    logger.info(f"/chats raw data: {chats}")
+
+    if not chats:
+        await update.message.reply_text("Группы не найдены.")
+        return
+
+    lines = ["📋 Чаты в базе:"]
+
+    for row in chats:
+        chat_id = row[0]
+        try:
+            chat = await context.bot.get_chat(chat_id)
+            title = chat.title or chat.username or f"ID {chat_id}"
+            lines.append(f"• {title}")
+        except Exception:
+            lines.append(f"• ID {chat_id} (недоступен)")
+
+    await update.message.reply_text("\n".join(lines), parse_mode=None)
+
+
 async def general_button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработка callback кнопок"""
     query = update.callback_query
     logger.info(f"Callback: {query.data}")
     await query.answer()
+    
     if query.data == "show_balance":
         await show_balance(update, context)
     elif query.data == "show_history":
         await show_history(update, context)
 
 
-# ===== MAIN =====
 async def log_all_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Логирует ВСЕ входящие сообщения для отладки"""
+    """Логирование всех сообщений"""
     if update.message and update.message.text:
         text = update.message.text
         user_id = update.effective_user.id if update.effective_user else "unknown"
@@ -1555,8 +1547,19 @@ async def log_all_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info("=" * 80)
 
 
+async def error_handler(update, context):
+    """Обработка ошибок"""
+    logger.exception("Unhandled exception", exc_info=context.error)
+
+
+# ============================================================
+# MAIN
+# ============================================================
+
 def main():
+    """Главная функция"""
     global batch_task
+    
     logger.info("Запуск бота...")
     print("🤖 ЗАПУСК БОТА...")
 
@@ -1572,24 +1575,24 @@ def main():
     application = (
         Application.builder()
         .token(BOT_TOKEN)
-        .connect_timeout(30)
-        .read_timeout(30)
-        .write_timeout(30)
+        .connect_timeout(60)
+        .read_timeout(60)
+        .write_timeout(60)
         .build()
     )
 
-    # ✅ УНИВЕРСАЛЬНЫЙ ЛОГГЕР - ЛОВИТ ВСЁ (group=-1 = высший приоритет)
+    # Универсальный логгер (group=-1)
     logger.info("📝 Регистрация универсального логгера...")
     application.add_handler(
         MessageHandler(filters.ALL, log_all_messages),
         group=-1
     )
 
-    # ✅ КОМАНДА /ex - САМАЯ ПЕРВАЯ, group=-2 (ещё выше приоритет)
+    # Команда /ex (group=-2 - самый высокий приоритет)
     logger.info("📝 Регистрация команды /ex...")
 
     async def export_wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Обёртка для гарантированного перехвата /ex"""
+        """Обёртка для /ex"""
         logger.info(f"🎯 ПЕРЕХВАЧЕНА КОМАНДА /ex: {update.message.text}")
         await export_operations(update, context)
 
@@ -1598,10 +1601,10 @@ def main():
             filters.TEXT & filters.Regex(r'^/ex'),
             export_wrapper
         ),
-        group=-2  # САМЫЙ ВЫСОКИЙ ПРИОРИТЕТ
+        group=-2
     )
 
-    # ✅ ОСТАЛЬНЫЕ КОМАНДЫ
+    # Остальные команды
     logger.info("📝 Регистрация остальных команд...")
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
@@ -1610,7 +1613,7 @@ def main():
     application.add_handler(CommandHandler("his", show_history))
     application.add_handler(CommandHandler("history", show_history))
     application.add_handler(CommandHandler("del", undo_last_operation))
-    application.add_handler(CommandHandler("export", export_wrapper))  # алиас
+    application.add_handler(CommandHandler("export", export_wrapper))
     application.add_handler(CommandHandler("cancel", cancel_any))
     application.add_handler(CommandHandler("chats", cmd_chats))
 
@@ -1620,11 +1623,11 @@ def main():
     application.add_handler(CallbackQueryHandler(undo_select_operation, pattern="^undo_select_"))
     application.add_handler(CallbackQueryHandler(cancel_undo, pattern="^cancel_undo$"))
 
-    # ✅ ОБРАБОТКА ФОТО (SWIFT)
+    # Обработка фото (SWIFT)
     logger.info("📝 Регистрация обработчика фото (SWIFT)...")
     application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
 
-    # Текстовые обработчики (group 0, 1 - ПОСЛЕ команд)
+    # Текстовые обработчики
     logger.info("📝 Регистрация текстовых обработчиков...")
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_delete_password), group=0)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text), group=1)

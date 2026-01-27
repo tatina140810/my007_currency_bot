@@ -309,7 +309,7 @@ class Database:
             date_from_str = date_from.strftime("%Y-%m-%d") if hasattr(date_from, 'strftime') else str(date_from)
             date_to_str = date_to.strftime("%Y-%m-%d") if hasattr(date_to, 'strftime') else str(date_to)
 
-            logger.info(f"Запрос БД: FROM {date_from_str} TO {date_to_str}")
+            # logger.info(f"Запрос БД: FROM {date_from_str} TO {date_to_str}")
 
             cur.execute("""
                 SELECT id, operation_type, currency, amount, description,
@@ -618,6 +618,16 @@ class Database:
         for ch in r'\/:*?[]':
             name = name.replace(ch, "_")
         return name[:31].strip()
+
+    def clear_all(self):
+        conn = self.get_connection()
+        cur = conn.cursor()
+
+        cur.execute("DELETE FROM operations;")
+        cur.execute("DELETE FROM chats;")
+
+        conn.commit()
+        conn.close()
 
     def recalculate_balances(self, chat_id: int | None = None):
         """
