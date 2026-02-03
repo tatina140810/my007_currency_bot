@@ -1,0 +1,56 @@
+‘Loe i
+a th LL o |
+monoteennnnmevenwenee Tngtance Tyne ahd Tranemiseion <-—-=cnceceoe
+Notification GON COR oh ginal sent to SWIFT (ACK) Tide q
+Network Delivery Status : Network |Ack
+Priority/Delivery ¢ Normal ‘ pay
+3 Message Input Reference : 2008 peas aes Cos
+nani nanan - nana enas-+- Message Header ---~-------~---------__-
+Swift Input +: FIN 103 Single Cust: © Credt Transfer
+Sender : BAKAKG22XXX |
+BAKAI BANK OJSC
+BISHKEK KG
+Receiver : KCUBK2KXXXX
+usc ‘BANK CENTERCREDIT!
+ALMATY Kz
+UETR : 38ce9f44-fdlb-41£0-9aa4~—288d37a80596 |
+wee == +--+ --------=--- Message Text =-------=-44<s------ anne nan N
+20: Sender's Reference
+BA260129-4321
+23B: Bank Operation Code
+CRED
+32A: Val Dte/Curr/Interbnk Settld Amt
+Date : 30 January ,2026 i
+Currency : USD (US DOLLAR)
+Amount 3 “) \ #16360, 50#
+50F: Ordering Customer - ID a
+/1240020002047817 fed \
+1/LLC UMUT TRADE in
+2/12 MICRODISTR, 75, 56 4
+3/KG/BISHKEK tars
+6/KG/TXID/01807202510042 ; ;
+53B: Sender's Correspondent -Location =
+/K2Z438562013227564072 x
+x 57A: Account With Institution — FI BIC ;
+= JSC 'BANK CENTERCREDIT'
+me 59: Beneficiary Customer-Name & Addr c oan os
+es /K2248562203234729164 fae “on0 eBARA pane = |
+= LLC AVIA CENTER KAZAKHSTAN Oo 00
+= KAZAKHSTAN, ALMATY, BOSTANDIK, ST. Rares i ~ a wo \29)
+2 TIMIRYAZEV, 15B, ROOM 5, OFF. 19 ne, Versi NTS |
+2 70: Remittance Information Piel — Leerazatth ior |
+4 PAYMENT FOR AIR TICKETS ACC. INVOIC: er: eee 4
+a E NO.2 DD 28.01.2026 Wes bay \ cpuuny ee
+4 71A: Details of Charges Locet water. f 5
+; wren nn Message re pe a a a a ear
+(CHK: FCF710B4E24F} Pea S8 late
+PKI Signature: MAC-Equivalent ih HH!
+Mbit. a i
+ay Hite
+; ‘sth alton tho
+i { =e
+< = ss
+ual ae
+P “oe
+Sooke bh ; ri
+he .) —_ L. -

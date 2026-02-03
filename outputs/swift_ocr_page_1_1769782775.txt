@@ -1,0 +1,63 @@
+ce
+pial |
+a
+30/01/26-19:16:36 PrinterBAKAYP8464-000001 1
+Wee enna ne nennn--=-- Inatance pe and Transmission ------—-----~—
+Notification (Tranemiasion) of |priginal sent to SWIFT (ACK)
+Network Delivery Status ! Network Ack
+Priority/Delivery : Normal
+Message Input Reference +: 1916) 260130BAKAKG22AXKKK6649661555
+WH ene een MOONARG H@AdOr <<—~<<<—a~a——--~ ~~~
+Swift Input 1: FIN 103 Single Ghatomer Credt Tranafer
+Sender t BAKAKG22XXX
+BAKAI BANK OJSC
+BISHKEK KG i
+Receiver : SPDBCNSHXXX
+SHANGHAI PUDONG DEVBELOPMENT BANK
+HEAD OFFICE
+SHANGHAI CN '
+VETR : 51840c28-f£dd8~-41£0-9a04-+64679af635a5
+meena ahaa nena oe ------+-- Message Text ---------------=------------
+20: Sender's Reference |
+BA260130-5180
+23B: Bank Operation Code {
+CRED |
+32A: Val Dte/Curr/Interbnk SettPd: Amt
+Date : 02 Februaky 2026
+Currency : CNY (YUAN? RENMINBI)
+Amount : 4 #34950,72¢
+SOF: Ordering Customer - ID |
+/1240020001962638 :
+1/LLC TEZKADAM |
+2/AYNI STR., 201, 43 We
+3/KG/BISHKEK 1a
+6/KG/TXID/01604202510290 }
+53B: Sender's Correspondent —Lofation
+/99010154100000133 it
+S57A: Account With Institution +} FI BIC
+BKCHCNBJ92H |
+BANK OF CHINA +
+JINHUA BRANCH ‘a
+JINHUA CN f |
+59: Beneficiary Customer—Name |&; Addr
+4401373147173 | ij
+WUYI TACHISO DRINKWARE CORPORATION
+CHINA, WUYI COUNTY, ZHEJIANG, 321200, eer
+ZHIYIN ROAD, BAIYANG INDUSTRIAL ZONE OW
+70: Remittance Information \ owe
+PAYMENT FOR THERMOS MUG AG <TO. CNTR 108 298
+-NO. TS202601-02 DD 13.01/66 AND 30 -0t
+INVOICE NO. TS202601-02 DD) 13.01.26 Buk 124008
+71iA: Details of Charges i WAH 01841199810107
+OUR | 1. Buuxos, ayo.
+72: Sender to Receiver Information
+/GODX/ Py |
+Tee men meme meena mnanmaneernenonm—m——— Message Trailer ---------~-~~~~-~_._____
+{CHK:AA3EB7793875A) |
+PKI Signature: MAC-Equivalent =|
+| ae te
+| ;
+on. pias oat
+=
+' a ‘
+i ‘

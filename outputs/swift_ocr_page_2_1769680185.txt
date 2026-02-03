@@ -1,0 +1,64 @@
+>
+SSret ie printerBAKAY-6871-000001 2
+<instePrty>NORM</InstrPrty”
+<SvcLvi>
+<cd>G001</Cd>
+</SveLvl>
+</PmtTpInf>
+<IntrBkstt LmAmt coys"CN¥"> 104645, 00</IntrBkStt LmAmt?
+<IntrBkSttilmDt>2026 01-28¢/IntrBksttlmDe>
+<InetdAmet Coye"CNY"> 104645. 00</InstdAmt>
+<ChrgBr>DEBT< /ChrgBr>
+<Inst@Agt>
+<FinInstnid>
+<RICFP I>BAKAKG22</BICEI>
+</FinInstnId>
+</InstgAgt>
+<InstdAgt>
+<FinInstnid>
+<BICFI>SPDBCNSH</BICFI>
+</FinInstnId>
+</InstdAgt>
+<Dbtr>
+<Nm>LLC "TEZKAOAM"</Nm>
+<PstlAdr>
+<StrtNm>AYNI</StrtNm>
+<BldgNb>201</BldgNb>
+<Room>43</Room>
+<PstCd>120047</PstCd>
+<TwnNm>BISHKEK</TwaNm>
+<Ctry>KG</Ctry>
+</PstiAdr>
+<Id>
+<Orgld>
+<Othr>
+<1d>01604202510290</Id>
+<schmeNm> ered
+<Cd>TXID</Ca> + ns
+</sSchmeNm> se OND Ora pK
+</Othr> Oy 28
+</orqid> gy B®
+</1d> 1 aes
+</Dbtr> a
+<DbtrAcct> weet SON SS
+<Id> 1 &
+<Othe> v
+<Id>1240020001962638</Id>
+</Othr> |
+</Id>
+</DbtrAcct> '
+<DbtrAgt>
+<FinInstnid> }
+<BICFI>BAKAKG22</BICF1> — nee —s
+</FinInstnid> nbee _ : a
+</DbtrAgt> + eae a.” F
+<CdtrAgt> 4 hip oe.
+<FinInstnid> ” A ;
+<BICF I>BKCHCNBI92P</, CRI ‘"
+</PinInstnid> fp ones) :
+</CdtrAgt> ayer ihe’
+<Cdtr> —
+<Nm>PINGHU TONGLI MACHT ;
+<PatlAdr>
+<StrtNm>18 SHILONG,C
+DEVELOPMENT 2ONE</S

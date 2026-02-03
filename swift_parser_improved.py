@@ -2,487 +2,507 @@
 # -*- coding: utf-8 -*-
 
 """
-Улучшенный парсер SWIFT (pacs.008) документов
-Извлекает: отправителя, получателя, UETR, сумму, валюту, описание
+УЛУЧШЕННЫЙ ПАРСЕР SWIFT v2.0
+Максимально толерантен к ошибкам OCR
 """
 
 import re
 import logging
-from typing import Optional
-from dataclasses import dataclass
+from typing import Optional, Dict, Any
+from difflib import SequenceMatcher
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class SwiftPayment:
-    """Структура платежа SWIFT"""
-    amount: float
-    currency: str
-    uetr: Optional[str] = None
-    sender: Optional[str] = None
-    receiver: Optional[str] = None
-    sender_account: Optional[str] = None
-    receiver_account: Optional[str] = None
-    description: Optional[str] = None
-    reference: Optional[str] = None
+def similarity(a: str, b: str) -> float:
+    """Вычисляет схожесть двух строк (0.0 - 1.0)"""
+    return SequenceMatcher(None, a.lower(), b.lower()).ratio()
+
+
+def fuzzy_find_tag(text: str, target_tag: str, threshold: float = 0.7) -> list:
+    """
+    Нечеткий поиск XML тегов с учетом ошибок OCR
     
-    def __str__(self):
-        lines = []
-        lines.append(f"💰 СУММА: {self.amount:,.2f} {self.currency}")
+    Пример:
+        fuzzy_find_tag(text, "IntrBkSttlmAmt") найдет:
+        - IntrBkSttlmAmt
+        - INteBkStt loamt
+        - InteBeSttlmAmt
+    """
+    results = []
+    
+    # Ищем все возможные теги в тексте
+    tag_pattern = r'<([^>]+?)>'
+    for match in re.finditer(tag_pattern, text):
+        tag_content = match.group(1).strip()
         
-        if self.uetr:
-            lines.append(f"🔑 UETR: {self.uetr}")
+        # Извлекаем имя тега (без атрибутов)
+        tag_name = tag_content.split()[0] if ' ' in tag_content else tag_content
+        tag_name = tag_name.strip('/<>')
         
-        if self.sender:
-            lines.append(f"📤 ОТПРАВИТЕЛЬ: {self.sender}")
-            if self.sender_account:
-                lines.append(f"   Счёт: {self.sender_account}")
-        
-        if self.receiver:
-            lines.append(f"📥 ПОЛУЧАТЕЛЬ: {self.receiver}")
-            if self.receiver_account:
-                lines.append(f"   Счёт: {self.receiver_account}")
-        
-        if self.reference:
-            lines.append(f"📋 Ссылка: {self.reference}")
-        
-        if self.description:
-            # Ограничиваем описание 150 символами
-            desc = self.description[:150]
-            if len(self.description) > 150:
-                desc += "..."
-            lines.append(f"📝 Описание: {desc}")
-        
-        return "\n".join(lines)
+        # Проверяем схожесть
+        if similarity(tag_name, target_tag) >= threshold:
+            results.append({
+                'match': match.group(0),
+                'tag_name': tag_name,
+                'full_content': tag_content,
+                'start': match.start(),
+                'end': match.end(),
+                'similarity': similarity(tag_name, target_tag)
+            })
+    
+    # Сортируем по схожести
+    results.sort(key=lambda x: x['similarity'], reverse=True)
+    return results
 
 
-def clean_text(text: str) -> str:
-    """Очистка текста от лишних пробелов и переносов"""
+def clean_number(text: str) -> str:
+    """
+    Очищает число от мусора OCR
+    
+    Примеры:
+        "15 7675. 00" → "157675.00"
+        "104645,00" → "104645.00"
+        "1 0 4 6 4 5" → "104645"
+    """
     if not text:
         return ""
-    # Убираем множественные пробелы
-    text = re.sub(r'\s+', ' ', text)
-    return text.strip()
-
-
-def extract_between_tags(text: str, tag: str) -> Optional[str]:
-    """
-    Извлекает содержимое между XML тегами
-    Примеры:
-        <UETR>abc123</UETR> → "abc123"
-        <Nm>John Doe</Nm> → "John Doe"
-    """
-    if not text or not tag:
-        return None
     
-    # Пробуем разные варианты тегов (с учётом возможных пробелов)
-    patterns = [
-        rf'<{tag}\s*>([^<]+)</{tag}\s*>',  # <Tag>content</Tag>
-        rf'<{tag}>([^<]+)<',                # <Tag>content<
-        rf'{tag}\s*>\s*([^<]+)',            # Tag>content
-    ]
+    # Убираем все пробелы
+    text = text.replace(" ", "").replace("\u00A0", "")
     
-    for pattern in patterns:
-        match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
-        if match:
-            content = match.group(1).strip()
-            if content:
-                return clean_text(content)
+    # Убираем мусорные символы
+    text = text.replace("*", "").replace("#", "").replace("'", "")
     
-    return None
-
-
-def fix_ocr_errors(text: str) -> str:
-    """
-    Исправляет типичные ошибки OCR в SWIFT документах
-    """
-    if not text:
-        return text
-    
-    # Типичные замены букв
-    replacements = {
-        # Часто путаемые валюты
-        'Ccy=BUR': 'Ccy=EUR',  # Конкретная замена
-        'Ccy=BURO': 'Ccy=EUR',
-        'Ccy=BUH': 'Ccy=EUR',
-        'Ccy=USO': 'Ccy=USD',
-        'Ccy=USP': 'Ccy=USD',
-        
-        # Тэги
-        'BICFI>': 'BICFI>',
-        'IntrBkSttlmAmt': 'IntrBkSttlmAmt',
-        'InstdAmt': 'InstdAmt',
-        'DBTR': 'Dbtr',
-        'CDTR': 'Cdtr',
-        
-        # UETR (часто путают 0 и O)
-        'OUETR': 'UETR',
-        'UETR0': 'UETR>',
-    }
-    
-    for old, new in replacements.items():
-        text = text.replace(old, new)
+    # Заменяем запятую на точку
+    if "," in text:
+        text = text.replace(",", ".")
     
     return text
 
 
-def extract_amount_and_currency(text: str) -> tuple[Optional[float], Optional[str]]:
+def extract_amount_and_currency_fuzzy(text: str) -> tuple[Optional[float], Optional[str]]:
     """
-    Извлекает сумму и валюту из SWIFT текста
-    
-    Ищет паттерны:
-    - <IntrBkSttlmAmt Ccy="EUR">118028.80</IntrBkSttlmAmt>
-    - <InstdAmt Ccy="EUR">118028.80</InstdAmt>
-    - Ccy="EUR">118028.80
-    - Ccy=EUR>118028.80 (без кавычек - ошибка OCR)
-    - Ccy=BUR>118028.80 (B вместо E - ошибка OCR)
+    УЛУЧШЕННОЕ извлечение суммы и валюты с учетом ошибок OCR
     """
     if not text:
         return None, None
     
-    logger.info(f"Ищу сумму в тексте длиной {len(text)} символов...")
+    logger.info("🔍 Начало извлечения суммы и валюты")
     
-    # Основные паттерны для сумм в SWIFT
-    patterns = [
-        # <IntrBkSttlmAmt Ccy="EUR">118028.80</IntrBkSttlmAmt>
-        (r'<IntrBkSttlmAmt\s+Ccy="([A-Z]{3})"\s*>(\d+(?:[.,]\d+)?)', 'IntrBk с кавычками'),
-        
-        # <InstdAmt Ccy="EUR">118028.80</InstdAmt>
-        (r'<InstdAmt\s+Ccy="([A-Z]{3})"\s*>(\d+(?:[.,]\d+)?)', 'Instd с кавычками'),
-        
-        # Без кавычек (OCR ошибка): <IntrBkSttlmAmt Ccy=EUR>118028.80
-        (r'<IntrBkSttlmAmt\s+Ccy=([A-Z]{3})\s*>(\d+(?:[.,]\d+)?)', 'IntrBk без кавычек'),
-        (r'<InstdAmt\s+Ccy=([A-Z]{3})\s*>(\d+(?:[.,]\d+)?)', 'Instd без кавычек'),
-        
-        # Без тегов: IntrBkSttlmAmt Ccy=EUR>118028.80
-        (r'IntrBkSttlmAmt\s+Ccy=([A-Z]{3})\s*>(\d+(?:[.,]\d+)?)', 'IntrBk без < >'),
-        (r'InstdAmt\s+Ccy=([A-Z]{3})\s*>(\d+(?:[.,]\d+)?)', 'Instd без < >'),
-        
-        # С кавычками без тегов
-        (r'IntrBkSttlmAmt\s+Ccy="([A-Z]{3})"\s*>(\d+(?:[.,]\d+)?)', 'IntrBk без < >, с кавычками'),
-        (r'InstdAmt\s+Ccy="([A-Z]{3})"\s*>(\d+(?:[.,]\d+)?)', 'Instd без < >, с кавычками'),
-        
-        # Упрощённый паттерн
-        (r'Ccy="([A-Z]{3})"\s*>(\d+(?:[.,]\d+)?)', 'Просто Ccy с кавычками'),
-        (r'Ccy=([A-Z]{3})\s*>(\d+(?:[.,]\d+)?)', 'Просто Ccy без кавычек'),
-    ]
+    # 1️⃣ НЕЧЕТКИЙ ПОИСК ТЕГОВ СУММЫ
+    amount_tags = ['IntrBkSttlmAmt', 'InstdAmt', 'IntrBkStt', 'InstdA']
     
-    for pattern, description in patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            logger.info(f"  Паттерн '{description}' сработал!")
-            currency = match.group(1).upper()
-            amount_str = match.group(2)
+    found_currency = None  # 🔥 СОХРАНЯЕМ ВАЛЮТУ
+    found_amount = None
+    
+    for tag in amount_tags:
+        matches = fuzzy_find_tag(text, tag, threshold=0.6)
+        
+        for match_info in matches:
+            full_content = match_info['full_content']
+            logger.info(f"📌 Найден похожий тег: {full_content}")
             
-            logger.info(f"  Исходная валюта: {currency}, сумма: {amount_str}")
+            # Извлекаем валюту из атрибута Ccy
+            # Примеры: Ccy="CNY", Coy="CNY*", Cey#"CNY"
+            ccy_pattern = r'C[ceo][ye][^"\'=]*["\']?=?["\']?\s*([A-Z]{3})'
+            ccy_match = re.search(ccy_pattern, full_content, re.IGNORECASE)
             
-            # Исправляем типичные OCR ошибки в валютах
-            currency_fixes = {
-                'BUR': 'EUR',  # B вместо E
-                'BURO': 'EUR',
-                'BUH': 'EUR',
-                'USO': 'USD',  # O вместо D
-                'USP': 'USD',
-            }
-            original_currency = currency
-            currency = currency_fixes.get(currency, currency)
+            if ccy_match and not found_currency:
+                found_currency = ccy_match.group(1).strip().upper()
+                # Убираем мусор
+                found_currency = found_currency.replace("*", "").replace("#", "")[:3]
+                logger.info(f"💱 Найдена валюта: {found_currency}")
             
-            if currency != original_currency:
-                logger.info(f"  Исправлена валюта: {original_currency} → {currency}")
+            # Ищем сумму ПОСЛЕ этого тега
+            start_pos = match_info['end']
+            text_after = text[start_pos:start_pos + 200]
             
-            try:
-                # Нормализуем сумму
-                amount_str = amount_str.replace(' ', '').replace(',', '.')
-                amount = float(amount_str)
+            # Паттерн для суммы: любое число с точкой или запятой
+            amount_pattern = r'>\s*([\d\s.,]+?)\s*<'
+            amount_match = re.search(amount_pattern, text_after)
+            
+            if amount_match:
+                amount_str = amount_match.group(1)
+                logger.info(f"💰 Найдена сумма (сырая): '{amount_str}'")
                 
-                logger.info(f"  Проверка валидации: сумма={amount}, валюта={currency}")
+                # Очищаем
+                clean_amount = clean_number(amount_str)
+                logger.info(f"💰 Сумма после очистки: '{clean_amount}'")
                 
-                # Валидация
-                valid_currencies = [
-                    'EUR', 'USD', 'GBP', 'CHF', 'JPY', 'CNY', 'RUB', 
-                    'KGS', 'KZT', 'AED', 'TRY', 'INR'
-                ]
-                
-                if currency not in valid_currencies:
-                    logger.warning(f"  Валюта {currency} не в списке валидных")
-                    continue
-                
-                if not (0.01 <= amount <= 100_000_000):
-                    logger.warning(f"  Сумма {amount} вне допустимого диапазона")
-                    continue
-                
-                logger.info(f"✅ Сумма найдена: {amount} {currency}")
-                return amount, currency
+                try:
+                    amount = float(clean_amount)
                     
-            except ValueError as e:
-                logger.warning(f"  Ошибка преобразования суммы: {e}")
-                continue
+                    # Проверка на адекватность
+                    if 1 <= amount <= 1_000_000_000:
+                        found_amount = amount
+                        logger.info(f"✅ Сумма OK: {amount}")
+                        # 🔥 Если есть и сумма и валюта - возвращаем
+                        if found_currency:
+                            logger.info(f"✅ УСПЕХ: {found_amount} {found_currency}")
+                            return found_amount, found_currency
+                    else:
+                        logger.warning(f"⚠️ Сумма вне диапазона: {amount}")
+                except ValueError:
+                    logger.warning(f"⚠️ Не удалось преобразовать: '{clean_amount}'")
+                    continue
     
-    logger.warning("⚠️ Сумма не найдена в документе")
+    # 🔥 Возвращаем то, что нашли (даже если не полностью)
+    if found_amount or found_currency:
+        logger.info(f"✅ Частичный успех: {found_amount} {found_currency}")
+        return found_amount, found_currency
+    
+    # 2️⃣ РЕЗЕРВНЫЙ МЕТОД: простой поиск "сумма + валюта"
+    # Паттерн: число с пробелами + валюта
+    fallback_pattern = r'([\d\s.,]{5,20})\s*([A-Z]{3})'
+    
+    for match in re.finditer(fallback_pattern, text):
+        amount_str = match.group(1)
+        currency = match.group(2)
+        
+        # Проверяем, что это не мусор
+        if currency not in ['EUR', 'USD', 'CNY', 'RUB', 'KGS', 'AED', 'KZT']:
+            continue
+        
+        clean_amount = clean_number(amount_str)
+        
+        try:
+            amount = float(clean_amount)
+            if 100 <= amount <= 1_000_000_000:  # более строгий диапазон для резервного метода
+                logger.info(f"✅ FALLBACK: {amount} {currency}")
+                return amount, currency
+        except ValueError:
+            continue
+    
+    logger.warning("❌ Сумма не найдена")
     return None, None
 
 
-def extract_uetr(text: str) -> Optional[str]:
+def extract_uetr_fuzzy(text: str) -> Optional[str]:
     """
-    Извлекает UETR (Unique End-to-End Transaction Reference)
+    Извлечение UETR с учетом ошибок OCR
     
-    Формат: 8-4-4-4-12 символов (UUID)
-    Пример: 65cc99f6-e3ca-4346-8631-b75dcfd0829a
+    UETR формат: 8-4-4-4-12 символов (UUID)
+    Пример: d992f572-0498-4462-ba01-01302f3deb42
     """
     if not text:
         return None
     
-    # Паттерн для UUID
-    pattern = r'<UETR>([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})</UETR>'
-    match = re.search(pattern, text, re.IGNORECASE)
+    logger.info("🔍 Поиск UETR")
     
-    if match:
-        uetr = match.group(1).lower()
-        logger.info(f"✅ UETR: {uetr}")
+    # 1️⃣ Ищем тег UETR
+    uetr_tags = fuzzy_find_tag(text, 'UETR', threshold=0.8)
+    
+    for match_info in uetr_tags:
+        logger.info(f"📌 Найден тег UETR: {match_info['match']}")
+        
+        # Ищем UUID после тега
+        start_pos = match_info['end']
+        text_after = text[start_pos:start_pos + 300]
+        
+        # Паттерн UUID: 8-4-4-4-12 hex символов
+        uuid_pattern = r'([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})'
+        uuid_match = re.search(uuid_pattern, text_after, re.IGNORECASE)
+        
+        if uuid_match:
+            uetr = uuid_match.group(1).lower()
+            logger.info(f"✅ UETR найден: {uetr}")
+            return uetr
+    
+    # 2️⃣ Резервный поиск: просто UUID в тексте
+    uuid_pattern = r'\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b'
+    uuid_match = re.search(uuid_pattern, text, re.IGNORECASE)
+    
+    if uuid_match:
+        uetr = uuid_match.group(1).lower()
+        logger.info(f"✅ UETR найден (fallback): {uetr}")
         return uetr
     
-    # Альтернативный поиск (без тегов)
-    pattern2 = r'\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b'
-    match2 = re.search(pattern2, text, re.IGNORECASE)
-    
-    if match2:
-        uetr = match2.group(1).lower()
-        logger.info(f"✅ UETR (без тегов): {uetr}")
-        return uetr
-    
-    logger.warning("⚠️ UETR не найден")
+    logger.warning("❌ UETR не найден")
     return None
 
 
-def extract_party_info(text: str, party_tag: str) -> tuple[Optional[str], Optional[str]]:
+def extract_party_fuzzy(text: str, party_type: str) -> tuple[Optional[str], Optional[str]]:
     """
-    Извлекает информацию о стороне (отправитель/получатель)
+    Извлечение информации о плательщике/получателе
     
     Args:
-        party_tag: 'Dbtr' (отправитель) или 'Cdtr' (получатель)
+        party_type: 'Dbtr' (плательщик) или 'Cdtr' (получатель)
     
     Returns:
-        (имя, счёт/IBAN)
+        (имя, счет/IBAN)
     """
-    if not text or not party_tag:
+    if not text:
         return None, None
     
-    # Ищем секцию отправителя/получателя
-    party_section = re.search(
-        rf'<{party_tag}>(.+?)</{party_tag}>',
-        text,
-        re.IGNORECASE | re.DOTALL
-    )
+    logger.info(f"🔍 Поиск {party_type}")
     
-    if not party_section:
-        # Альтернативный поиск (без закрывающего тега)
-        party_section = re.search(
-            rf'<{party_tag}>(.{{1,500}})',
-            text,
-            re.IGNORECASE | re.DOTALL
-        )
+    # 1️⃣ Ищем тег стороны
+    party_tags = fuzzy_find_tag(text, party_type, threshold=0.75)
     
-    if not party_section:
-        logger.warning(f"⚠️ Секция {party_tag} не найдена")
+    if not party_tags:
+        logger.warning(f"❌ Тег {party_type} не найден")
         return None, None
     
-    party_text = party_section.group(1)
+    # Берем лучшее совпадение
+    best_match = party_tags[0]
+    start_pos = best_match['start']
     
-    # Извлекаем имя (Nm или Name)
+    # Берем текст после тега (следующие 1000 символов)
+    party_section = text[start_pos:start_pos + 1000]
+    
+    logger.info(f"📌 Секция {party_type} найдена")
+    
+    # 2️⃣ Извлекаем имя (Nm)
     name = None
-    for tag in ['Nm', 'Name']:
-        name = extract_between_tags(party_text, tag)
-        if name:
-            break
+    nm_tags = fuzzy_find_tag(party_section, 'Nm', threshold=0.7)
     
-    # Извлекаем счёт/IBAN
+    if nm_tags:
+        nm_match = nm_tags[0]
+        # Берем текст после тега
+        nm_end = nm_match['end']
+        text_after_nm = party_section[nm_end:nm_end + 300]
+        
+        # 🔥 УЛУЧШЕННОЕ извлечение с учетом разных форматов:
+        # 1. <Nm>NAME</Nm>
+        # 2. <Nm>"NAME"</Nm>  
+        # 3. <NmNAME</Nm> (OCR склеил)
+        # 4. <Nm> NAME </Nm>
+        
+        name_patterns = [
+            r'^["\']?\s*([^"\'<>]+?)\s*["\']?\s*<',  # основной паттерн
+            r'^([^<]+)<',  # резервный
+            r'"([^"]+)"',  # в кавычках
+            r'([A-Z][A-Za-z\s.,"&()-]{3,100})',  # просто текст
+        ]
+        
+        for pattern in name_patterns:
+            match = re.search(pattern, text_after_nm)
+            if match:
+                name = match.group(1).strip()
+                # Очистка
+                name = re.sub(r'\s+', ' ', name)
+                name = name.strip('"\'')
+                if len(name) >= 3:  # минимум 3 символа
+                    logger.info(f"✅ Имя: {name}")
+                    break
+    
+    # 3️⃣ Извлекаем счет/IBAN
     account = None
     
-    # 1. Ищем IBAN
-    iban_match = re.search(r'<IBAN>([A-Z0-9]{15,34})</IBAN>', party_text, re.IGNORECASE)
+    # Ищем IBAN (начинается с 2 букв и 2 цифр)
+    iban_pattern = r'\b([A-Z]{2}\d{2}[A-Z0-9]{11,30})\b'
+    iban_match = re.search(iban_pattern, party_section)
+    
     if iban_match:
         account = iban_match.group(1)
+        logger.info(f"✅ IBAN: {account}")
     else:
-        # 2. Ищем просто IBAN в тексте
-        iban_match2 = re.search(r'\b([A-Z]{2}\d{2}[A-Z0-9]{11,30})\b', party_text)
-        if iban_match2:
-            account = iban_match2.group(1)
-    
-    if not account:
-        # 3. Ищем ID счёта
-        account = extract_between_tags(party_text, 'Id')
-    
-    if name:
-        logger.info(f"✅ {party_tag}: {name}" + (f" ({account})" if account else ""))
+        # Ищем просто ID
+        id_tags = fuzzy_find_tag(party_section, 'Id', threshold=0.8)
+        if id_tags:
+            id_match = id_tags[0]
+            id_start = id_match['end']
+            text_after_id = party_section[id_start:id_start + 200]
+            
+            content_match = re.search(r'>([^<]+)<', text_after_id)
+            if content_match:
+                account = content_match.group(1).strip()
+                account = re.sub(r'\s+', '', account)
+                logger.info(f"✅ Счет: {account}")
     
     return name, account
 
 
-def extract_description(text: str) -> Optional[str]:
+def extract_description_fuzzy(text: str) -> Optional[str]:
     """
-    Извлекает описание платежа
+    Извлечение назначения платежа
     
-    Ищет в тегах:
-    - <Ustrd>
-    - <RmtInf>
-    - <AddtlInf>
+    Ищет теги: Ustrd, RmtInf, AddtlInf
     """
     if not text:
         return None
     
-    # 1. Ищем Ustrd (Unstructured remittance info)
-    desc = extract_between_tags(text, 'Ustrd')
-    if desc:
-        logger.info(f"✅ Описание (Ustrd): {desc[:50]}...")
-        return desc
+    logger.info("🔍 Поиск описания")
     
-    # 2. Ищем RmtInf (Remittance Information)
-    rmtinf_section = re.search(
-        r'<RmtInf>(.+?)</RmtInf>',
-        text,
-        re.IGNORECASE | re.DOTALL
-    )
-    if rmtinf_section:
-        desc = clean_text(rmtinf_section.group(1))
-        logger.info(f"✅ Описание (RmtInf): {desc[:50]}...")
-        return desc
+    # 1️⃣ Ищем Ustrd (Unstructured)
+    ustrd_tags = fuzzy_find_tag(text, 'Ustrd', threshold=0.7)
     
-    # 3. Ищем AddtlInf (Additional Information)
-    desc = extract_between_tags(text, 'AddtlInf')
-    if desc:
-        logger.info(f"✅ Описание (AddtlInf): {desc[:50]}...")
-        return desc
+    if ustrd_tags:
+        ustrd_match = ustrd_tags[0]
+        logger.info(f"📌 Найден тег Ustrd")
+        
+        end_pos = ustrd_match['end']
+        text_after = text[end_pos:end_pos + 500]
+        
+        # 🔥 УЛУЧШЕННОЕ извлечение содержимого:
+        desc_patterns = [
+            r'^([^<>]+)<',  # до следующего тега
+            r'"([^"]+)"',  # в кавычках
+            r'>([^<]+)<',  # между > и <
+            r'([A-Z][A-Za-z0-9\s.,()/-]{10,400})',  # просто текст
+        ]
+        
+        for pattern in desc_patterns:
+            match = re.search(pattern, text_after)
+            if match:
+                description = match.group(1).strip()
+                description = re.sub(r'\s+', ' ', description)
+                if len(description) >= 10:  # минимум 10 символов
+                    logger.info(f"✅ Описание: {description[:100]}")
+                    return description
     
-    logger.warning("⚠️ Описание не найдено")
+    # 2️⃣ Ищем RmtInf
+    rmtinf_tags = fuzzy_find_tag(text, 'RmtInf', threshold=0.7)
+    
+    if rmtinf_tags:
+        rmtinf_match = rmtinf_tags[0]
+        start_pos = rmtinf_match['start']
+        
+        # Берем весь блок RmtInf
+        rmtinf_section = text[start_pos:start_pos + 1000]
+        
+        # Извлекаем весь текст между RmtInf тегами
+        content_match = re.search(r'<RmtInf[^>]*>(.*?)</RmtInf>', rmtinf_section, re.DOTALL)
+        if content_match:
+            description = content_match.group(1).strip()
+            # Убираем внутренние теги
+            description = re.sub(r'<[^>]+>', ' ', description)
+            description = re.sub(r'\s+', ' ', description)
+            if len(description) >= 10:
+                logger.info(f"✅ Описание (RmtInf): {description[:100]}")
+                return description
+    
+    logger.warning("❌ Описание не найдено")
     return None
 
 
-def extract_reference(text: str) -> Optional[str]:
-    """Извлекает референс платежа"""
-    if not text:
-        return None
-    
-    # Message ID
-    ref = extract_between_tags(text, 'MsgId')
-    if ref:
-        return ref
-    
-    # Payment ID
-    ref = extract_between_tags(text, 'PmtId')
-    if ref:
-        return ref
-    
-    # Instruction ID
-    ref = extract_between_tags(text, 'InstrId')
-    if ref:
-        return ref
-    
-    return None
-
-
-def parse_swift_text(text: str) -> Optional[str]:
+def parse_swift_text_v2(text: str, return_dict: bool = False):
     """
-    Главная функция парсинга SWIFT документа
+    ОСНОВНАЯ ФУНКЦИЯ ПАРСИНГА v2.0
     
-    Args:
-        text: OCR текст документа
-    
-    Returns:
-        Форматированное сообщение или None
+    Возвращает словарь или форматированную строку
     """
     if not text:
-        logger.warning("Пустой текст для парсинга")
         return None
     
-    logger.info("=" * 60)
-    logger.info("🔍 ПАРСИНГ SWIFT ДОКУМЕНТА")
-    logger.info("=" * 60)
+    logger.info("=" * 80)
+    logger.info("🚀 ПАРСИНГ SWIFT v2.0")
+    logger.info("=" * 80)
     
-    # Исправляем типичные ошибки OCR
-    text = fix_ocr_errors(text)
+    # Проверка на SWIFT-маркеры
+    upper = text.upper()
+    swift_markers = ["PACS", "CBPR", "FITOFIC", "ISO 20022", "UETR", "BICFI"]
+    hits = sum(1 for k in swift_markers if k in upper)
     
-    # Проверяем что это SWIFT
-    if not any(marker in text.lower() for marker in [
-        'pacs.008', 'fitoficstmr', 'cbprplus', 'bicfi', 'uetr',
-        'intrbksttlmamt', 'instdamt', 'dbtr', 'cdtr'
-    ]):
-        logger.warning("❌ Не похоже на SWIFT документ")
+    if hits < 2:
+        logger.info("⛔️ Не SWIFT: недостаточно маркеров")
         return None
+    
+    logger.info(f"✅ SWIFT маркеры: {hits}/6")
     
     # Извлекаем данные
-    amount, currency = extract_amount_and_currency(text)
+    amount, currency = extract_amount_and_currency_fuzzy(text)
+    uetr = extract_uetr_fuzzy(text)
+    payer_name, payer_account = extract_party_fuzzy(text, 'Dbtr')
+    receiver_name, receiver_account = extract_party_fuzzy(text, 'Cdtr')
+    description = extract_description_fuzzy(text)
     
-    if not amount or not currency:
-        logger.error("❌ Не удалось извлечь сумму и валюту")
+    # Подсчет успешно извлеченных полей
+    filled_fields = sum(bool(x) for x in [
+        amount, currency, uetr, payer_name, receiver_name, description
+    ])
+    
+    logger.info(f"📊 Извлечено полей: {filled_fields}/6")
+    
+    if filled_fields < 2:
+        logger.warning("⚠️ Недостаточно данных")
         return None
     
-    uetr = extract_uetr(text)
-    sender, sender_account = extract_party_info(text, 'Dbtr')
-    receiver, receiver_account = extract_party_info(text, 'Cdtr')
-    description = extract_description(text)
-    reference = extract_reference(text)
+    # Формируем результат
+    result = {
+        "amount": amount,
+        "currency": currency,
+        "uetr": uetr,
+        "payer": payer_name,
+        "payer_account": payer_account,
+        "receiver": receiver_name,
+        "receiver_account": receiver_account,
+        "payment_for": description,
+    }
     
-    # Создаём объект платежа
-    payment = SwiftPayment(
-        amount=amount,
-        currency=currency,
-        uetr=uetr,
-        sender=sender,
-        receiver=receiver,
-        sender_account=sender_account,
-        receiver_account=receiver_account,
-        description=description,
-        reference=reference,
-    )
+    if return_dict:
+        return result
     
-    logger.info("=" * 60)
-    logger.info("✅ SWIFT УСПЕШНО РАСПОЗНАН")
-    logger.info("=" * 60)
+    # Форматируем вывод
+    lines = ["💳 SWIFT ПЛАТЁЖ"]
     
-    return str(payment)
+    if amount and currency:
+        lines.append(f"\n💰 Сумма: {amount:,.2f} {currency}")
+    
+    if payer_name:
+        lines.append(f"\n👤 Плательщик: {payer_name}")
+        if payer_account:
+            lines.append(f"   Счёт: {payer_account}")
+    
+    if receiver_name:
+        lines.append(f"\n👥 Получатель: {receiver_name}")
+        if receiver_account:
+            lines.append(f"   Счёт: {receiver_account}")
+    
+    if description:
+        desc_short = description[:150]
+        if len(description) > 150:
+            desc_short += "..."
+        lines.append(f"\n📝 Назначение:\n{desc_short}")
+    
+    if uetr:
+        lines.append(f"\n🔑 UETR:\n{uetr}")
+    
+    logger.info("=" * 80)
+    logger.info("✅ ПАРСИНГ ЗАВЕРШЕН")
+    logger.info("=" * 80)
+    
+    return "\n".join(lines)
 
 
-def parse_swift_pages(texts: list[str]) -> list[str]:
-    """
-    Парсит несколько страниц SWIFT документа
-    
-    Args:
-        texts: список OCR текстов
-    
-    Returns:
-        список форматированных сообщений
-    """
-    results = []
-    
-    for i, text in enumerate(texts, 1):
-        logger.info(f"\n📄 Обработка страницы {i}/{len(texts)}")
-        result = parse_swift_text(text)
-        if result:
-            results.append(result)
-    
-    return results
-
-
+# Тестирование
 if __name__ == "__main__":
-    # Тест парсера
+    logging.basicConfig(level=logging.INFO)
+    
+    # Тест с ошибками OCR
     test_text = """
-    <IntrBkSttlmAmt Ccy="EUR">118028.80</IntrBkSttlmAmt>
-    <UETR>65cc99f6-e3ca-4346-8631-b75dcfd0829a</UETR>
+    <INteBkStt loamt Coy="CNY*>157675.00</InteBeStt lmAmt>
+    <instdaAmt Cey#"CNY">15 7675. 00</InetdAnst>
+    <UETR>d992f572-0498-4462-ba01-01302f3deb42</UETR>
     <Dbtr>
-        <Nm>SEDEP TRADE LLC</Nm>
+        <Nm>LLC "TEZKADAM"</Nm>
     </Dbtr>
     <Cdtr>
-        <Nm>UAB DINAURAS</Nm>
-        <IBAN>PL94109027760000001525552835</IBAN>
+        <Nm>PINGHU TONGLI MACHINE CO.,LTD</Nm>
     </Cdtr>
-    <Ustrd>PAYMENT FOR AGRICULTURAL GOODS</Ustrd>
+    <Ustrd>PAYMENT FOR HYDRAULIC PRESS ACC TO.CONTRACT NO. PTM15 DD 25.05.2025</Ustrd>
     """
     
-    logging.basicConfig(level=logging.INFO)
-    result = parse_swift_text(test_text)
+    print("\n" + "=" * 80)
+    print("ТЕСТ ПАРСЕРА v2.0")
+    print("=" * 80)
+    
+    result = parse_swift_text_v2(test_text)
+    
     if result:
-        print("\n" + "=" * 60)
-        print("РЕЗУЛЬТАТ:")
-        print("=" * 60)
+        print("\n✅ РЕЗУЛЬТАТ:")
         print(result)
+    else:
+        print("\n❌ Данные не извлечены")
+
+
+# ============================================================
+# АЛИАС ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ
+# ============================================================
+
+# Позволяет использовать в bot.py как:
+# from swift_parser_improved import parse_swift_text
+parse_swift_text = parse_swift_text_v2
+
+print("✅ Парсер загружен: parse_swift_text() и parse_swift_text_v2() доступны")

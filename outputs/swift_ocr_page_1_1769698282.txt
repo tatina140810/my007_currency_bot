@@ -1,0 +1,54 @@
+he a a ree s 2S i Ny Sana 7
+29/01/26-19:50:08 bs 301 it me a cd ’ {
+a eS: ATi | = = = }
+N ep pnt, Hhstance; Type and Tranemiss Ss Stes bolin
+Network Delivers pembeston) (OF. Original sent to SWIFT (Ac®
+Priority/Deliver eases
+¥ + Normal
+i tessase Input Reference : 1949 26012 9BAKAKG2 2AXXX6648661378
+‘Sender > BAKAKG22%xx ies rei ransfer
+BAKAI BANK OJSC |
+BISHKEK KG \
+Receiver : SPDBCNSHXXX
+SHANGHAI PUDONG DEVELOPMENT BANK
+HEAD OFFICE i
+SHANGHAI CN
+UETR : 80€36654—fd14-41£0-9aa4-99c7694a4a57
+Tom rt tm rcc occas aaa------- Message Text —~------=--==—--—- ==
+20: Sender's Reference ;
+BA260129-4218 ; ‘¢
+23B: Bank Operation Code 2,
+CRED =
+32A: Val Dte/Curr/Interbnk Settld: Amt .
+Date : 30 January |2026 yh :
+Currency : CNY (YUAN’ RENMINBI) . : <
+Amount : toes #129793, 64¢ rg
+50F: Ordering Customer - ID ' :
+/1240020001962638 i Ae
+1/LLC TEZKADAM Fara ‘
+2/AYNI STR., 201, 43 in Heit y oh
+Syste 3/KG/BISHKEK a tab ery hades
+; 6/KG/TXID/01604202510290 |>) \\\\\. S.
+53B: Sender’s Correspondent -Location 23 exis
+ea /99010154100000133 Nie .
+SRE. 57A: Account With Institution - FI BIC ,
+NS DBSSSGSG " i
+eae DBS BANK LTD Tami eiel et) ; Siena
+eS SINGAPORE SG a pon tere
+ee 59: Beneficiary Customer-Name &| Addr : ‘ 5
+Stas /8855795224 eet Bas Rie tas
+Sree INT SOLUTION TRADE LIMITED) |): Epa — Nn
+et HONG KONG, SUITE C, LEVEL, 7, WORLD FOND <BA aereg an) i
+8 TRUST TOWER, STANLEY STREET,| 50 C) Ce i
+a 70: Remittance Information VV aos > Sit ieee :
+a PAYMENT FOR TEXTILE ACC.TO CONTRAC \ag gy 108 (28), #
+ra T NO.IST16 DD 16.12.2025 AND, TNVOTC Law |
+S| E NO.6 DD 28.01.2026 at LY HH OBTTI9SO IIE oe, A Recre pe
+Sed 71A: Details of Charges Ana 1, SAO Wis :
+eke OUR ba At ty) E Se ee Seis >
+a 72: Sender to Receiver Information! a TUNE Sa
+=< co aree oe neameneeens Mesahige Trailer <---———
+ae {CHK:9A5BASABEL60} 0 | sce bee ganas
+es PKI Signature: MACs baaivat ete i | immerse as
+eS oe eae Te cists Aa aa et el aelhd + oy
+; ~

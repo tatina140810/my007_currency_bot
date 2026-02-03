@@ -1,0 +1,66 @@
+02/02/26-18:44:49" printerBAKAY—8956-000001 1
+—-------—==--=---=-=- Instance Type and Transmission -—-----=<--=--———
+Notification (Transmission) of Ofiginal sent to SWIFTNet (ACK)
+Network Delivery Status +: Network Ack
+Priority/Delivery : Nouiay
+Message Input Reference + 1844 260202bakakyg22_generic001099000000740
+eee co neenubeeunedeclllle Message Header <<-=<4=3--+=<<--s—=~-—
+MX Input : pacs.008.001.08 CBPRPLUs-pace.008.001,08_FIToFICustomerCr
+editTransfer
+Requestor DN : oUurkXX, OMbakakg22} osswift
+Responder DN : ouexxx, o=spdbensh; omswift
+User Reference: BA260202-1090913
+VETR : peo2beb4—c120-49eb-b904- 6B £41d14c680
+Service Name : swift.finplus \
+Non-repudiation Indicator: False
+SWIFT Reference: swi01001-2026-02-02T12:44:40.55614 .21431992
+SWIFT Request Reference: SNL51478-2026-02-02T12:44:39.2894059.2198132
+CBT Reference: 75£f£b394-002c-41£1-9aa4—3c59ca72c9db
+Store-and-forward Input Time: 0102:2026-02-02T12:44:40
+Signing DN ; cn=bakakg, o=bakakg22, omswift
+~-+---------~---------------- Message Text ---- nnn
+<AppHdr xmlns="urn:iso:std:iso:20022:tech:xsd:head.001.001.02">
+<Fr>
+<FIId> :
+<FinInstnIid>
+<BICFI>BAKAKG22</BICFI>
+</FinInstnId> i
+</FIId>
+</Fr> i
+<To> |
+<FIId> i
+<FinInstnIid>
+<BICFI>SPDBCNSH</BICFI> |,
+</FinInstnIid> }
+g: </FIId> i
+‘ </To> t
+<BizMsgIdr>BA260202-1090913</BizMsgldr>
+= <MsgDefIdr>pacs.008.001.08</MsgDefIdr>
+<BizSvc>swift.cbprplus.03</BizSve>
+<CreDt>2026-02-02T17:28:56.5966152+06: 00</CreDt>
+<PssblDplct>false</PssblDplct>
+<Prty>NORM</Prty> rain
+ax </AppHdr>
+<Document xmlns="urn:iso:std:iso}20022:tech:xsd:pacs.008.001.08">
+oo <PIToFICstmrCdtTrf> :
+ee <GrpHdr> | |
+<MsgId>BA260202-1090913</MsgId>
+Ak <CreDt Tm>2026-02-02T17:28:56.5966152+06:00</CreDt m
+; <NbOfTxs>1</NbOfTxs> 5 | Waser | if
+aks <SttlmInf> | (3h le Grr
+& <SttlmMtd>INDA</Sttlmmtd> ||| @sk seis
+ef <Id> ANG = ies toe 5
+5 <Othr> Here | if t 4 By eer Ie ec 27
+ae <Id>9901015410000013a</td> | bate |
+ae </Othr> 1 Alt fet ROIITEaEI0107 |
+4 </Id> al ‘4 . aaah
+fa </SttlmAcct> Hall “3
+A </Stt1lmIn£> elie) \' is
+= </GrpHdr> a7 9)(1|
+<Cdt TrfTxInf> eels
+<Inst rId>BA260202-109094
+<UETR>b592beb4—c120=
+</PmtId> ala
+7 q
+As il
+i

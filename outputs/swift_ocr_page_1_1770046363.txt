@@ -1,0 +1,50 @@
+Notification Chednandagions e bre +n “sent ‘to SWIFT (RR) Te
+Network Delivery Statue : Net dk Relies ete wel Tinks a
+Priority/Deliver t Normal || " PS Ses) Dre dai <i
+Message Input Reterente 1 1944 260202HAKAKG22A%%%6653661766. I i
+mee aaa e eee anes eeeeckses Menage H der Seber uimprrpuininipeiptntetete eter wr
+Swift Input : FIN 103 Single Customer Credt transfer '
+Sender : BAKAKG22XXX }
+BAKAI BANK 0uSC i
+BISHKEK KG )
+Receiver : GECGHRHHXXX | i
+HARBOUR AND HILLS FINANCIAL SERVICES LIMITED
+KOWLOON HK | _
+VETR : kelbeneMieuniash mir) foie a
+Toe tr serra n aan a aen—s-- = Message) TEXt OS ee
+20: Sender's Reference | | s -
+BA260202-1152 Ii ee.
+23B: Bank Operation Code | l { i
+CRED halls By.
+32A: Val Dte/Curr/Interbnk Settld) Amt amt fy
+Date : 03 February :2026 ae
+Currency : USD (US DOLLAR) ees
+Amount : i esi ~ #430000, 00# =|
+50K: Ordering Customer-Name & Address. ae
+/1240020002047817 aa ie re =
+ADD.12 MICRODISTR., 75, oe | he:
+BISHKEK, KYRGYZSTAN wlikeate ‘1
+53B: Sender's Correspondent -Logation _—
+/1054170010200010900000 | |.\... #4)
+S7A: Account With Institution — FI Bic in
+HSBCHKHH eaalia Tu le
+HONGKONG AND SHANGHAI BANKING CORPORATION LIMITED, THE
+HONG KONG HK fi ———
+59: Beneficiary Customer-Name- & ; Addr oes
+/808866636838 Till eth a
+HDT INTERNATIONAL LIMITED... Hl ai F.
+HONG KONG, KOWLOON BAY KOWLOON,,||ENT meg
+ERPRISE SQUARE TWO 3 SHEUNG YYEq| RO [co cara cao
+AD 26/F, 1 Hid ‘ih | We8)ousc <pakar pang |
+70: Remittance Information | ul : t | ==
+PAYMENT FOR METAL PROFILES. ae 10 | 02-07. pet O
+CNTR.NO.CIS2025V1 DD 07.10.2025) AN fee ea
+D INVOICE NO.7 DD 20.01.2026 | o: oe nc
+71A: Details of Charges ETT Es Lin Sauce: yamtnaypone
+72: Sender to Receiver Informatio ie
+/INS//B2B mith ihe =.
+eT rere re ee Message|Trailer ----==<-<<-<--<~---~--=—
+{CHK:DC96A27C72B7} ih) Ai
+PKI Signature: MAC-Equivalent eBu\e |
+os eS Sv
+ii]

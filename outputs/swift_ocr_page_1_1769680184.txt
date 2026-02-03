@@ -1,0 +1,66 @@
+TT a ae
+27/01/26-18:09:34 printerBAKAY-6871-000001 2
+oe eeee=~- Instance Type and Transmission ~~-~-~~~~~-~=—
+Notification (Transmission) of Original sent to SWIFTNet (ACK)
+Network Delivery Status : Network Ack
+Priority/Delivery : Normal
+Message Input Reference : 1809 26012 7bakakg22_generic001093000000613
+wun a eenuennweccuumennasassue MesEge Header -<-<<cer— 9S
+MX Input : pace,.008.001.08 CBPRPlus-pacs .008,001.08_FIToFICustomerCr
+editTransfer
+Requestor DN ¢ ouexxx, owbakoakg22, omawlEt
+Responder DN : ouexxx, o=spdbonsh, owswift
+User Reference: BA260127 1086830
+UETR ; d992f572-0f98-44c2-ba01-61302£ 3deb42
+Service Name : swift.finplus
+Non-repudiation Indicator: False
+SNIFT Reference: 9¥{01001-2026-01-27T12:09:28.19701.20097032
+SWIFT Request Reference: SNL51478-2026-01-27T12:09:28.2894057 .148862z
+CBT Reference: aZe30afa-fb77-41£0~9aa4—-72e3b92428c1
+Store-and-forward Input Time: 0102:2026-01-27T12:09:28
+Signing DN : cnebakakg, o=bakakg22, owswift
+eae ane ee en  ----------- Message Text --- str
+<AppHdr xmins="urn:iso:std:is0:20022:tech:xsd:head.001.001,.02*%>
+<Fr>
+<FIId>
+<PinInstnid>
+<BICFI>BAKAKG22</BICFI>
+</FinInstnid>
+</FIId>
+</Fr>
+<To>
+<FIId>
+<FinInstnid>
+<BICFI>SPDBCNSH</BICFI>
+</PinInstnid>
+</FIId> a
+</To> on0. ol
+<BizMsgIdr>BA260127-1086830</BizMsgidr> r
+<MsgbefIdr>pacs 008.001, 08</MsgDefiIdr> le
+<BizSve>swift.cbprplus .03</BizSyc>
+<CreDt>2026-01-27T17: 34:01 .183538+06:00</CreDt> aay Ate g oT
+<PssblDpict>false</PssblDpict> wot of ane
+<Prty>NORM</Prty> 3 none & E
+</AppHdr>
+<Document xmlns-"urn:iso:std:iso:20022:tech:xsd:pacs.008.001.08">
+<FIToFICstmrCdtTrf>
+<GrpHdr>
+<MsqId>BA260127~1086830</MsgId>
+<CreDt Tm>2026-01-27T17; 34:01. 183538406: 00</CreDttm>
+<NbOfLTxs>1</NbOLTxs> y :
+<Sttlmin£> :
+<SttimMtd>INDA</SttlmMtd> : —
+<SttlmAcct> eee ee na
+<Id> EN | —_
+<Othr> nee gaa “af
+<Id>99010154100000133</1d> oe
+</Othr> Ti Ae .
+</Id> ee a
+</SttlmAcct> aes it j
+</SttlmInf> be :
+</GrpHdr>
+<CdtTrfTxInf>
+<InstrId>BA260127-108
+<EndToEndId>NOTPROVIE
+<UETR>d992£572-0£91
+</PmtId>

@@ -1,0 +1,65 @@
+th
+30/701/26-19:14:26 PrinterBAKA) ih 457-000001 1
+ween nena anne eanas---- Inptance Hi and Tranomission ~-------------
+Notification (Transmission) of Peiginal sent to SWIFT (ACK)
+Network Delivery Statun 1 Net ‘cia Ack
+Priority/Delivery i Normay
+Message Input Reference 191 E601 3OBAKAKG22AXKH6 649661549
+wren aa nana nnn new aan-— Meaema® Header —<—<—~~---~~nnnwnnnnnnnnn
+Swift Input +: FIN 103 Single Ghibt ome x Credt Transfer
+Sender : BAKAKG22XXX Hy |
+BAKAI BANK 0J8C |
+BISHKEK KG
+Receiver : SOLADESTXXX 1M
+LANDESBANK. BADEN-WUE) RETEMBERG
+STUTTGART DE Wy
+UETR 2. 52196¢3cc-fdd8-41f0-9aad pOfi 4do2e2d£
+ee eee ees eee eel Mens abi | Text --=4=5-9-$ $99
+20: Sender's Reference ti
+BA260130-5196 }
+23B: Bank Operation Code i
+CRED ws
+32A: Val Dte/Curr/Interbnk Sett#a Amt
+Date : 30 Janua yA2026
+Currency : EUR (BURQ)}) |
+Amount : a #139066,73# sae
+50K: Ordering Customer-Name & Atidress aT ane
+/1240020002140975 ie OND” ene
+1/LLC SARA TRADE be a8 23
+2/5 MICRODISTR., 42, 67 i \ 49 OF
+3/KG/BISHKEK as | 2 SO 40
+6/KG/TXID/02908202510171. |p. | BRE 998 ua 3
+S7A: Account With Institution, 7} FI, BIC wi
+ESSEPLPW i L U
+SKANDINAVISKA ENSKILDA BA KEN AB, SPOLKA AKCYIJNA, ODD&IAL W POLSCE
+WARSZAWA PL phi
+59: Beneficiary Customer-Name ‘fi/Addr
+/72L15237000080000000021023p27' <,
+FAZER POLAND SP. 2 0.0. tad
+POLAND, 00-839 WARSZAWA, © UUs -TOWARO
+WA, 28 | eee
+70: Remittance Information }
+PAYMENT FOR CANDIES ACC.TO) CNTR.NO.
+FPS22 DD 22.01.2026 AND I lOICE NO.
+0003/2026/PF DD 22.01.2026)
+71A: Details of Charges (ihe: 3
+ane ----—-—- ---------=-— Message Trailer ------n mmm nnn nnn nnn
+{CHK:E1CC2B4C631E} Halts
+PKI Signature: MAC-Equivalent jh!) .,
+H}
+‘ a
+i
+‘Ble eH
+eat 33 |
+aT | yy all ;
+5 hed }) tot
+“os Ht il
+a, ; iy
+™ {
+Sag “if
+1 y! Seon!
+if
+a, 4 Liha ,
+Wht Ri
+ie ni aia
+= UE ——— ———————E

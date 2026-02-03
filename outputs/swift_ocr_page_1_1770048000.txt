@@ -1,0 +1,69 @@
+Wy Lt
+‘<PmtTpInt> gy
+02/02/26018147:50 PrinterBAKAY-8961-000001 2
+eee SS
+ZInstrPrty>NORM</InstrPrty>
+<SvcLvl> |
+<Cd>G001</Cd> Rial tate
+</Svcbvl> GEL Mien |
+</Pmt Tpinf> It
+<IntrBkSttimamt Ccy="CNY">72960.00</IntrBkStt1lmAmt>
+<IntrBkSttlmDt>2026-02-03</IntrBkSttlmbt>
+<InstdAmt Ccys"CNY">72960,00</InstdAmt>
+<ChrgBr>DEBT</ChrgBr>
+<InstgAgt>
+<FinInstnid>
+<BICFI>BAKAKG22</BICEI>
+</Fininstnid>
+</InstgAgt>
+<InstdAgt>
+<FinInstnid>
+<BICFI>SPDBCNSH</BICFI>
+</FinInstnId>
+</InstdAgt>
+<Dbtr>
+<Nm>LLC "TEZKADAM"</Nm>
+<PstlAdr> I
+<StrtNm>AYNI</StrtNm>
+<BldgNb>201</BldgNb>
+<Room>43</Room>
+<PstCd>720047</PstCd>
+<TwnNm>BISHKEK</TwnNm>
+<Ctry>KG</Ctry>
+</PstlAdr>
+<Id>
+<OrgId>
+<Othr>
+<Id>01604202510290</Id>
+= <SchmeNm>
+<Cd>TXID</Cd>
+: </SchmeNm>
+3 </Othr> |
+“as </Oxrgid>
+</Id>
+vi </Dbtr> i
+<DbtrAcct>
+fs <Id>
+E <Othr>
+Ze <Id>1240020001962638</Id>
+aoe </Othr>
+Saad </Id>
+aiid </DbtrAcct>
+3 <DbtrAgt>
+<FinInstnId> ' = M..
+y <BICFI>BAKAKG22< ; Le yene siete fe
+ee Ptah Mass: ‘ SS —— af PAN
+so </DbtrAgt> | ‘lebih Peak aR Doe Lee
+<Cdt rAgt> jit) oat =A hha wife | 27
+oe <FinInstnId> \i ‘ ‘ | pee ||
+zp <BICFI>BKCHCNB. /BYOHTS| 1 | 11499810109
+os </FinInstnid> TA4K</BICEI> al
+eee </CdtrAgt> Nt 7
+a5 <Cdtr> | AA)
+<Potiades PERN i f GROUP CO ,
+<StrtNm>FORETG) RADE BUTT AYN
+<BldgNb>82-1</Biag rd igi ING
+<TwnNm> 529000, JTANGMEN, GUR |
+SCtry>CN</Ctry> a =
+</Pstladr> We
+ae a _—

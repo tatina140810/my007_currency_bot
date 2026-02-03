@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+
 # -*- coding: utf-8 -*-
 
 import os
@@ -118,6 +118,12 @@ CHAT_ALIASES = {
     "Группа Антилопа": ["антилопа", "antilope"],
     "ДЕЛЬТА": ["дельта", "delta"],
 }
+SWIFT_KEYWORDS = [
+    "swift", "pacs", "cbpr", "fitofic", "mx",
+    "uetr", "bic", "iso 20022",
+    "payment", "instd", "intrbk",
+]
+
 
 # ============================================================
 # ЛОГИРОВАНИЕ
@@ -183,6 +189,43 @@ def extract_group_tag(text: str) -> tuple[str | None, str]:
     group = m.group(1).strip()
     clean_text = m.group(2).strip()
     return group, clean_text
+
+def extract_swift_xml_fields(text: str) -> dict:
+    result = {}
+
+    def find(tag):
+        m = re.search(fr"<{tag}>(.*?)</{tag}>", text, re.S | re.I)
+        return m.group(1).strip() if m else None
+
+    nm = find("Nm")
+    if nm:
+        result["payer"] = nm
+
+    uetr = find("UETR")
+    if uetr:
+        result["uetr"] = uetr
+
+    ustrd = find("Ustrd")
+    if ustrd:
+        result["purpose"] = ustrd
+
+    m = re.search(
+        r'<IntrBkSttlmAmt[^>]*Ccy="([A-Z]{3})"[^>]*>([\d.,]+)</IntrBkSttlmAmt>',
+        text
+    )
+    if m:
+        result["currency"] = m.group(1)
+        result["amount"] = m.group(2)
+
+    return result
+
+
+def is_swift_ready(acc: dict) -> bool:
+    return (
+        acc.get("amount") and
+        acc.get("currency") and
+        acc.get("uetr")
+    )
 
 
 def normalize_group_name(name: str) -> str:
@@ -582,8 +625,9 @@ def parse_manual_operation_line(text: str) -> dict | None:
     # пример: фикс 200 usd 80.4 rub
     # --------------------
     m = re.search(
-        r"фикс\s+([\d\s.,]+)\s+([a-z]{3,5})\s+([\d\s.,]+)\s+([a-z]{3,5})",
+        r"фикс\s+([\d\s.,]+)\s*([a-zа-я$€¥]{1,10})\s+([\d\s.,]+)\s*([a-zа-я$€¥]{1,10})",
         t,
+        re.IGNORECASE,
     )
     if m:
         return {
@@ -594,6 +638,7 @@ def parse_manual_operation_line(text: str) -> dict | None:
             "to_currency": normalize_currency(m.group(4)),
             "description": "Фикс",
         }
+
 
     # --------------------
     # ХАРБОР КОМИССИЯ
@@ -744,6 +789,20 @@ def quick_swift_check(text: str) -> bool:
 
 _SWIFT_TAG_RE = re.compile(r"<\s*[\w:.-]+(?:\s+[^>]*)?>|</\s*[\w:.-]+\s*>")
 
+def looks_like_document(text: str) -> bool:
+    lines = text.splitlines()
+    return (
+        len(lines) >= 20 and
+        sum(1 for l in lines if '<' in l and '>' in l) >= 3
+    )
+
+
+def looks_like_swift(text: str) -> bool:
+    t = text.lower()
+    hits = sum(1 for k in SWIFT_KEYWORDS if k in t)
+    return hits >= 2
+
+
 
 def has_swift_xml_tags(text: str) -> bool:
     """Проверяет наличие SWIFT XML тегов"""
@@ -758,7 +817,6 @@ def has_swift_xml_tags(text: str) -> bool:
 
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработка фото с поддержкой альбомов"""
     message = update.effective_message
     if not message or not message.photo:
         return
@@ -767,6 +825,17 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     file = await photo.get_file()
     image_bytes = bytes(await file.download_as_bytearray())
 
+    # ⛔ быстрый фильтр ДО OCR
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+    except Exception:
+        return
+
+    if not looks_like_document_image(img):
+        logger.info("📷 Фото пропущено: не похоже на документ")
+        return
+
+    # ⚠️ дальше ТОЛЬКО документы
     group_id = message.media_group_id
 
     if not group_id:
@@ -786,86 +855,196 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await asyncio.sleep(MEDIA_GROUP_WAIT)
         except asyncio.CancelledError:
             return
+
         pages = media_groups.pop(group_id, [])
         media_group_tasks.pop(group_id, None)
+
         if pages:
             await _process_swift_pages(pages, message)
 
     media_group_tasks[group_id] = asyncio.create_task(delayed())
 
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+ГОТОВЫЙ КОД ДЛЯ ЗАМЕНЫ В bot.py
+
+ИНСТРУКЦИЯ:
+1. Откройте ваш bot.py
+2. Найдите функцию _process_swift_pages (примерно строка 800-900)
+3. Удалите всю старую функцию
+4. Вставьте КОД НИЖЕ (всё от async def до конца функции)
+5. Сохраните и перезапустите бота
+"""
+
+# ============================================================
+# КОПИРУЙТЕ ОТСЮДА ↓↓↓
+# ============================================================
 
 async def _process_swift_pages(pages_bytes: list[bytes], message):
-    """Обработка страниц SWIFT"""
+    """
+    УЛУЧШЕННАЯ обработка многостраничных SWIFT документов
+    
+    Изменения:
+    - OCR всех страниц сначала
+    - Объединение текста
+    - Парсинг ОДИН РАЗ всего документа
+    """
+    
     start_time = time.time()
     logger.info(f"SWIFT: страниц в пачке = {len(pages_bytes)}")
-
-    debug_dir = "outputs"
-    os.makedirs(debug_dir, exist_ok=True)
-
-    success_count = 0
-
-    for idx, b in enumerate(pages_bytes, 1):
+    
+    os.makedirs("outputs", exist_ok=True)
+    
+    # ============================================================
+    # ШАГ 1: OCR ВСЕХ СТРАНИЦ
+    # ============================================================
+    
+    all_ocr_texts = []
+    
+    for idx, img_bytes in enumerate(pages_bytes, 1):
         page_start = time.time()
-
-        logger.info(f"  Страница {idx}: скачивание завершено ({len(b):,} байт)")
-        logger.info(f"  Страница {idx}: запуск OCR...")
-
+        size = len(img_bytes)
+        
+        # Быстрая фильтрация
+        if size < 30_000:
+            logger.info(f"  Страница {idx}: пропущена (слишком маленькая)")
+            continue
+        
+        logger.info(f"  Страница {idx}: запуск OCR ({size:,} байт)")
+        
         try:
-            quick_text = await asyncio.to_thread(
+            text = await asyncio.to_thread(
                 run_ocr_from_image_bytes,
-                b,
+                img_bytes,
                 use_easyocr=False
             )
-            logger.info(f"  Страница {idx}: OCR завершён - {len(quick_text)} символов ({time.time()-page_start:.2f}с)")
-        except Exception as e:
-            logger.exception(f"  Страница {idx}: Ошибка OCR")
-            quick_text = ""
-
-        # Сохраняем OCR текст
-        debug_file = os.path.join(debug_dir, f"swift_ocr_page_{idx}_{int(time.time())}.txt")
-        with open(debug_file, "w", encoding="utf-8") as f:
-            f.write(f"=== СТРАНИЦА {idx} ({len(b):,} байт) ===\n\n")
-            f.write(quick_text)
-        logger.info(f"  Страница {idx}: OCR сохранён в {debug_file}")
-
-        # Быстрая проверка
-        is_swift = quick_swift_check(quick_text)
-        logger.info(f"  Страница {idx}: {'похоже' if is_swift else 'НЕ похоже'} на SWIFT")
-
-        if not is_swift:
-            logger.info(f"  Страница {idx}: пропущена (не SWIFT)")
-            logger.info(f"  Страница {idx}: общее время {time.time()-page_start:.2f}с")
+        except Exception:
+            logger.exception(f"  Страница {idx}: OCR ошибка")
             continue
-
-        # Парсинг
-        parse_start = time.time()
-        logger.info(f"  Страница {idx}: начинаю парсинг...")
-
-        swift_msg = parse_swift_text(quick_text)
-
-        logger.info(f"  Страница {idx}: время парсинга {time.time()-parse_start:.2f}с")
-
-        if swift_msg:
-            page_time = time.time() - page_start
-            logger.info(f"  Страница {idx}: успешно распознана за {page_time:.1f}с")
-
-            if len(pages_bytes) > 1:
-                swift_msg = f"Страница {idx}/{len(pages_bytes)}\n\n{swift_msg}"
-
-            await message.reply_text(swift_msg, parse_mode=None)
-            success_count += 1
-        else:
-            logger.warning(f"  Страница {idx}: XML найден, но данные не извлечены")
-
-        logger.info(f"  Страница {idx}: общее время {time.time()-page_start:.2f}с")
-
-    total_time = time.time() - start_time
-
-    if success_count > 0:
-        logger.info(f"SWIFT: успешно распознано {success_count} из {len(pages_bytes)} страниц за {total_time:.1f}с")
+        
+        # Сохраняем OCR текст для отладки
+        fname = f"outputs/swift_ocr_page_{idx}_{int(time.time())}.txt"
+        with open(fname, "w", encoding="utf-8") as f:
+            f.write(text)
+        
+        # Добавляем в список
+        all_ocr_texts.append(text)
+        
+        logger.info(
+            f"  Страница {idx}: OCR завершён "
+            f"({len(text)} символов, {time.time()-page_start:.2f}с)"
+        )
+        
+        # Логируем содержимое (как раньше)
+        log_ocr_debug(text, idx)
+    
+    # Проверка: есть ли текст?
+    if not all_ocr_texts:
+        logger.warning("SWIFT: нет текста после OCR")
+        return
+    
+    # ============================================================
+    # ШАГ 2: ОБЪЕДИНЯЕМ ВСЕ СТРАНИЦЫ
+    # ============================================================
+    
+    # Объединяем через двойной перенос строки
+    combined_text = "\n\n".join(all_ocr_texts)
+    
+    logger.info(f"📄 Объединено страниц: {len(all_ocr_texts)}")
+    logger.info(f"📄 Общий размер текста: {len(combined_text)} символов")
+    
+    # Сохраняем объединенный текст
+    combined_fname = f"outputs/swift_combined_{int(time.time())}.txt"
+    with open(combined_fname, "w", encoding="utf-8") as f:
+        f.write(combined_text)
+    logger.info(f"💾 Сохранён: {combined_fname}")
+    
+    # ============================================================
+    # ШАГ 3: ПАРСИМ ВЕСЬ ДОКУМЕНТ ОДИН РАЗ
+    # ============================================================
+    
+    logger.info("🔍 Запуск парсинга объединенного документа")
+    
+    parsed = parse_swift_text(combined_text, return_dict=True)
+    
+    if not parsed:
+        logger.warning("⚠️ Парсинг не дал результатов")
+        logger.info(f"SWIFT: данные не собраны (время {time.time() - start_time:.1f}с)")
+        return
+    
+    # Проверяем, есть ли хоть какие-то данные
+    filled_fields = sum(bool(parsed.get(key)) for key in [
+        'amount', 'currency', 'uetr', 'payer', 'receiver', 'payment_for'
+    ])
+    
+    logger.info(f"📊 Извлечено полей: {filled_fields}/6")
+    
+    if filled_fields == 0:
+        logger.warning("⚠️ Все поля пустые")
+        logger.info(f"SWIFT: данные не собраны (время {time.time() - start_time:.1f}с)")
+        return
+    
+    # ============================================================
+    # ШАГ 4: ФОРМАТИРУЕМ И ОТПРАВЛЯЕМ
+    # ============================================================
+    
+    # Получаем красиво отформатированное сообщение
+    formatted_msg = parse_swift_text(combined_text)  # без return_dict
+    
+    if formatted_msg:
+        await message.reply_text(formatted_msg, parse_mode=None)
+        logger.info(f"✅ SWIFT обработан успешно за {time.time() - start_time:.1f}с")
     else:
-        logger.info(f"SWIFT: ни одна страница не распознана (время: {total_time:.1f}с)")
+        logger.warning(f"⚠️ Не удалось отформатировать сообщение")
+        logger.info(f"SWIFT: данные не собраны (время {time.time() - start_time:.1f}с)")
 
+
+def log_ocr_debug(text: str, page: int):
+    """
+    Логирование OCR для отладки
+    (эта функция уже есть в вашем bot.py, оставляем как есть)
+    """
+    lines = text.splitlines()
+    
+    logger.info(f"🧾 OCR DEBUG | Страница {page}")
+    logger.info(f"Всего строк: {len(lines)}")
+    
+    # Первые строки
+    logger.info("📌 ПЕРВЫЕ 25 СТРОК OCR:")
+    for ln in lines[:25]:
+        logger.info(f"  {ln}")
+    
+    # Строки с цифрами
+    logger.info("🔢 СТРОКИ С ЦИФРАМИ:")
+    for ln in lines:
+        if any(ch.isdigit() for ch in ln):
+            logger.info(f"  {ln}")
+    
+    # Строки с валютами
+    logger.info("💱 СТРОКИ С ВАЛЮТАМИ:")
+    for ln in lines:
+        if any(x in ln.upper() for x in ("EUR", "USD", "CNY", "RUB", "KGS", "AED")):
+            logger.info(f"  {ln}")
+
+
+def format_swift_message(acc: dict) -> str:
+    lines = ["💳 SWIFT ПЛАТЁЖ"]
+
+    if acc.get("payer"):
+        lines.append(f"\n👤 Плательщик:\n{acc['payer']}")
+
+    if acc.get("amount") and acc.get("currency"):
+        lines.append(f"\n💰 Сумма:\n{acc['amount']} {acc['currency']}")
+
+    if acc.get("uetr"):
+        lines.append(f"\n🔗 UETR:\n{acc['uetr']}")
+
+    if acc.get("purpose"):
+        lines.append(f"\n📝 Назначение платежа:\n{acc['purpose']}")
+
+    return "\n".join(lines)
 
 # ============================================================
 # ОБРАБОТКА ТЕКСТА
@@ -898,6 +1077,10 @@ def looks_like_bank_income(text: str) -> bool:
 
     return (has_income_words and has_currency) or (has_bank_markers and has_currency)
 
+def compute_fixed_payment_amount(buy_amount: float, rate: float) -> float:
+    if rate <= 0:
+        raise ValueError("Курс должен быть > 0")
+    return buy_amount * rate
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -978,10 +1161,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-        logger.info(
-            f"Поступление: {income['amount']} {income['currency']} → chat {target_chat_id_final}"
-        )
-        return
     if staff:
         bulk = parse_bulk_pp_payments(clean_text)
         if bulk:
@@ -1039,11 +1218,31 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         rate = manual["rate"]
         to_curr = manual["to_currency"]
 
+        if rate <= 0:
+            await message.reply_text("❗ Курс должен быть больше 0", parse_mode=None)
+            return
+
+        # ✅ ФИКС = ОТКУП: фикс 140000 cny 11.4 rub
+        # значит: +140000 CNY, - (140000 * 11.4) RUB
+        if desc == "Фикс":
+            pay_amount = round(amount * rate, 6)
+
+            # покупаем валюту откупа
+            await queue_operation(target_chat_id, "Конвертация", currency, amount, desc)
+
+            # платим валютой оплаты
+            await queue_operation(target_chat_id, "Конвертация", to_curr, -pay_amount, desc)
+            return
+
+        # -------------------------------------------------------
+        # ❗ НЕ фикс: оставляем старую логику (как было у тебя)
+        # -------------------------------------------------------
         to_amount = compute_conversion_to_amount(amount, rate, currency, to_curr)
 
         await queue_operation(target_chat_id, "Конвертация", currency, -amount, desc)
         await queue_operation(target_chat_id, "Конвертация", to_curr, to_amount, desc)
         return
+
 
     # --------------------
     # ПРОЧИЕ
@@ -1440,9 +1639,9 @@ async def export_operations(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with open(output_path, "rb") as file:
             caption_text = datetime.now(KG_TZ).strftime("%d.%m.%Y %H:%M")
             if date_from:
-                caption_text += f"\n📅 Операции за {date_from.strftime('%d.%m.%Y')}"
+                caption_text += f"\nОперации за {date_from.strftime('%d.%m.%Y')}"
             else:
-                caption_text += f"\n📊 Все операции"
+                caption_text += f"\n Все операции"
 
             await update.message.reply_document(
                 document=file,

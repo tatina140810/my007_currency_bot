@@ -1,0 +1,60 @@
+Spc RET PrinterBAKAY=6873-000002 2
+$I
+<InstrPrry>NORM</Instrerty>
+<SvcLvl>
+<ca>G0d1</Cd>
+</Svelvl>
+</PmtTpiInf£>
+<INteBkStt loamt Coy="CNY*>157675.00</InteBeStt lmAmt>
+<Int rBkStt lmpt>2026-01-28</ Int rBkSttimdt>
+<instdaAmt Cey#"CNY">15 7675. 00</InetdAnst>
+rgB RBT</ChrgBr>
+[CFI *BAKAKG2 2</BICFI>
+<BICPI>SPOBCNSH</BICEI>
+</FinInstnid>
+</InstdaAgt>
+<Dbtr>
+<NroLLC “TEZKADAM"</Nm>
+<PstiAdr>
+<StrtNmrAYNI</Strtnm>
+<Bldgtb>201</BldgNb>
+<Roor.>43</Room>
+<PstCd>7200d7</PstCd>
+<TwnNm> BISHKEK</TwoNm>
+<Ctry>KG</Ctry>
+</Potladr>
+<id>
+<Orgid>
+<Othr>
+<1d>01604202510290</ id>
+<Schmenm> <8
+<Cd>TXID</Ca> oe.
+</SchmeNn> on) Pe”
+</Othr> @r= 23
+</Orgid> Th
+</Id> 31 a <
+</Dbtr> Tn
+<DbtrAcct> one pear
+<id> — i
+<Othr>
+<Id>1240020001962638</Id>
+</Othr>
+</id>
+</DbtraAcct>
+<Obt rAgt>
+<FiniInstnId>
+. <BICPI>BAKAKG22</BICEI>
+</FiniInstnid>
+</Dbtragt>
+<CatrAgt>
+! <FinInstnid>
+Fin <BICFI>WIHBHKHH</BICEI>
+ats </PinInstnId> .
+ee | </CdatrAgt> ; °
+oN, <Cdtr> a
+if] <Nm>ZHONGSHAN CITY ANCIENT TOWN DREAM BOME i NG
+ie DEPARTMENT </Nm> mr Brain: :
+ei <PstlAdr> iva 7
+Aa <BldgNb>NO.2 P5</BldgMbs
+<TwnNm>LIGHTING ERA PLAZ ‘
+<CtryoCN</Ctry>

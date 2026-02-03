@@ -1,0 +1,67 @@
+<pmtTpinf> DN Petite, Oe 5
+= —~-‘einstrPrty>NORM</InstrPrty>”
+' <SvcLvl>__ i
+! <Cd>G001</Cd> Pal sath |
+| BISON pat hee
+> }
+SLRe cuEStEimamt Ccoy="CNY">9000, 00</IntrBksttlmaAmt>
+<InteBkStt lmpt>2026-02-03</IntrBkSttlmbt>
+<Instdamt Coy#="CNY">9000,00</InstdAmt>
+<ChrgBr>DEBT</ChrgBr>
+<InstgAgt> |
+<FinInstnid> |
+<BICFI>BAKAKG22</BIGFI>
+</FinInstniId>
+</InstgAgt>
+<InstdAgt>
+<FinInstnid>
+<BICFI>SPDBCNSH</BICFI>
+</FinInstnid>
+</InstdAgt>
+<Dbtr>
+<Nm>LLC "TEZKADAM"</Nm>
+<PstiAdr> 2
+<StrtNm>AYNI</StrtNm>
+<BldgNb>201</BldgNb>
+<Room>43</Room>
+<PstCd>720047</PstCd>
+<TwnNm>BISHKEK</TwnNm>
+<Ctry>KG</Ctry>
+</PstlAdr>
+<Id>
+<OrgId>
+<Othr>
+<Id>01604202510290</Id>
+<SchmeNm>
+—_ <Cd>TXID</Cd>
+> </SchmeNm>
+3 </Othr>
+=a </Orgld>
+</Id>
+= </Dbtr> ‘
+= <DbtrAcct>
+= <Id>
+z <Othr>
+=a <Id>1240020001962638</Id>
+s </Othr>
+ae </Id>
+e </DbtrAcct>
+aoe <DbtrAgt> |
+<FinInstnId> pet 4 f
+SK <BICFI>BAKAKG22</BICFI> aay
+ae </FinInstnId> | (aipasse ‘BAKNFO
+Se </DbtrAgt> | | i
+= <Cdtragt> ma hye | dal
+eta <FinInstnid> ey a lf . | ee
+ie <BICFI>BKCHCNBJ44K</BICFI> | Set ae
+oh </FinInstnId> I, ae i : Ln Sins ya Many pina,
+a </Cdtragt> Wie ie
+4 <Cdtr> it Nahai *
+a <Nm>JIANGMEN FOREIGN TRADE GROUP €O., LIDs/ q
+ee <PstlAdr> | Wl A
+eS <StrtNm>FOREIGN TRADE BUILDING; OTAl a
+3 SBldgNb>82-1</BldgNb> | ot.)
+<TwnNm>529000, JTANGMBN) GUANGD ;
+SCtry>CN</Ctry> |) av
+</PstlAdr> on: Vi
+t

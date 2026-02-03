@@ -1,0 +1,61 @@
+2 =
+9/01/26 19:50:58 PrinterBAKAY—7968-000001 1
+ee ey ee ee
+WETS So aeaeeceeecee §6THetance type and Tra ised Kc
+Notification (Transmission) of Original sent to SHirt (ACK)
+Saavads Sule Status : Network Ack
+riority/Delivery : Normal
+Message Input Reference +: 1950 260129BAKAKG22AX%x%%6648661379
+TSS eRe neReee eee cee ewe MenGage Header ~<<-+---4~-~-..- ~~ _____
+Swift Input : FIN 103 Single Customer Credt Transfer
+Sender : BAKAKG22XXX
+BAKAT BANK OJ8C
+BISHKEK KG
+Receiver : SPDBCNSHXXX
+SHANGHAI PUDONG DEVELOPMENT BANK
+HEAD OFFICE
+SHANGHAI CN
+VETR : 14dccb0a-fdl7-41£0-9aa4-£9B3bF£1d628b
+- Haan an nanan asaaaa==- Message Text ----<<--<-+-<+aaaa-nssn ie
+20: Sender's Reference
+BA260129-4242
+235: Bank Operation Code
+CRED
+32A: Val Dte/Curr/Interbnk Settld Amt
+Date : 30 January 2026
+Currency : CNY (YUAN RENMINBI)
+Amount : E #28140, 00#
+SOF: Ordering Customer - ID t
+/1240020001849874 \
+1/EURASIA RESOURCES LLC |
+== 2/CHUY STR., 52, 10 ?
+2 3/KG/BISHKEK i
+6/KG/TXID/01510201010239 F t
+cs 53B: Sender's Correspondent -Location
+% /99010154100000133
+57A: Account With Institution - FI Bic
+BKCHCNBJ300
+BANK OF CHINA be tress
+es SHANGHAI BRANCH
+Sa en SHANGHAI CN |
+<a 59: Beneficiary Customer-Name. & Addr
+a 1454682245084 Par ate ei lin ts
+Sarre DOUMON SUPPLY CHAIN MANAGEMENT (SHA
+is NGHAI) CO.,LTD { t
+ae CHINA, XINZHUANG, SHANGHAI, BUILD, 3, f
+eee YUANSHAN, MINHANG, NO.377;, RM) 216 GAD AGAHAD GARD AA
+Sed 70: Remittance Information |.) | ss5 (Boise caacamane y
+ed PMNT FOR TRANSP . SERVICES (FOUNDRY MA. ri 28
+es CHINE) ACC.TO AGMT NO: Deete xDD: 95.0 79-0 108
+a 1.26 AND INV NO.DM-260128008 DD 28. —
+ee 01.26 COMBINED TRANSPORTATION) i} wan Oeste 0107
+So 71A: Details of Charges are ida F Besos, YB -
+a OUR ew tN
+od 72: Sender to Receiver Information
+a /OTPX/ AAD BIORN 2 ere
+4 See ee are Message Trailer aes
++ (CHK:EFA2FDE42243) 00 ili hd,
+4 PKI Signature: MAC-Equivalent || .
+“3 { . Sah
+3 La ay | ati ‘. se ‘
+oa te

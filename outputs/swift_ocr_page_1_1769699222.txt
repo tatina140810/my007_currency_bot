@@ -1,0 +1,56 @@
+29/01/26-19:52-4
+OFS areata Thetance Type and tr.
+Notification (t ansmission ---~-~.-.-____
+Priority/Deliver .
+Message Input Ret i aeaats
+PES Reece GUE eee ete tas ‘Mone age Had gOAKAKG22Axxx6648 661384
+Swift Input : FIN 1 “kt Seki
+Sondes: : BARARGD URNS Single Customer Credt transfer
+BAKAI BANK OJSC
+BISHKEK KG
+Receiver : SOLADESTXXX
+LANDESBANK BADEN-WUBRTTEMBERG
+STUTTGART DE
+VETR : i4d6ff86-fdl7-41£0-9aa4-a4f£B£843771e
+TTS See a enn mnnnnnn— Message Text ------=<----211222 0
+20: Sender's Reference
+BA260129-4237
+235; Bank Operation Code
+CRED
+32A: Val Dte/Curr/Interbnk Settld Amt
+Date : 29 January 2026
+Currency : EUR (EURO)
+Amount : po" #9650, 00#
+SOK: Ordering Customer-—Name & Address
+/1240020002140975 -
+1/LLC SARA TRADE wet tstt ath
+2/5 MICRODISTR., 42, 67 I
+3/KG/BISHKEK F
+6/KG/TXID/02908202510171 |. :
+57A: Account With Institution -—/FI BIC
+CCCMPTPL
+CAIXA CENTRAL CREDITO AGRICOLA MUTUO
+LISBON PT {
+59: Beneficiary Customer—Name & Addr
+/PT50004513264029748624864; 1)
+CERTOS HABITOS - TORREFACCAO DE CAF
+ES,LDA, PORTUGAL, VIZELA, CONDOMINIO =) cae
+EMPR., FERMIL, FRACCAO C,D,H, RUA B ; BAKA BANKS
+ELOS ARES, 4815-092 Lite : ; 28
+70: Remittance Information | ify en WS ZS
+PAYMENT FOR COFFEE BEANS ACGC.TO CNT tS
+Ai 42400
+R NO.CH28 DD 28.01.2026 AND INVOICE wun eeenaggeto%c?
+NO.4 DD 28.01.2026 fish st tds c,Bauieox, yn. womspuna. SS.
+71A: Details of Charges ie nile
+Nite
+sichid Mesenue ‘nraiter PSSST ERT
+(CHK: 07BF4E837263} Wa tanad
+PKI Signature: MAC-Equivalent | We
+Hy ‘ alt
+a a eee F !
+x i fie = ee
+| i ea + 7
+Se heath mito iy 1 .
+r 9
+pe '

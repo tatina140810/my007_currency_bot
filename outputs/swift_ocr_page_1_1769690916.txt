@@ -1,0 +1,42 @@
+: Q:28:48 PrinterRSK-2555-000001
+_ Instance Type and Transmission oa i ne
+Notification (Transmission) of Original sent to swirtT (ACK)
+Network Delivery Status : Network Ack
+Priority/Delivery : Normal
+Message Input Reference : 1828 260129SESVKG22AXXX4775463517
+. Message Header A Oe 0S a wt a no
+swift) Input : FIN 103 Single Customer Credt Transfer
+OJSC ELDIK BANK
+BISHKEK KG
+DZ BANK AG DEUTSCHE ZENTRAL~GENOSSENSCHAFTSBANK
+FRANKFURT AM MAIN DE
+UETR : ¢c849a259-1267-40fa-a015-7ebb7?c9lbaca
+- Message Text ---9cr tse tn === ==
+<0: Sender's Reference
+238: Bank Operation Code
+32A: Val Dte/Curr/Interbnk Settld Amt
+Date : 29 January 2026
+Currency : EUR (EURO)
+Amount 7 #73002, 60#
+SOK: Ordering Customer-Name & Address
+>KYRGYZSTAN,G. BISHKEK OKTYABRSKIY
+R-N MKR 5 D. 42 KV. 67
+53B: Sender's Correspondent -Location
+57A: Account With Institution - FI BIC
+BCITITMMXXX
+INTESA SANPAOLO SPA
+HEAD OFFICE
+MILANO IT
+59: Beneficiary Customer-Name & Addr
+/1T26G60306911200100000062031
+LELIT. ITALY SRL
+ADRES: VIALE DEL LAVORO 45,25045 CAS
+TEGNATO, ITALY
+70: Remittance Information
+PAYMENT FOR STEAM IRONING MACHINE A
+CC,TO CONTRACT NO.SO120011400 DD 23
+401-2026 INVOICE NO.SO120011400 DD
+“TIA? Details of Charges
+i ees paaea-------- Message Trailer --~~~--~-~.-~-~---~~--=-
+‘
+—

@@ -1,0 +1,65 @@
+(02/02/26-18:44:49" PrinterBAKAY-8956-000001 1
+eee een eaaeeseees==+ Inetance Type and Transmission ~-----------——
+Notification (Transmission) of Ofiginal sent to SWIFTNet (ACK)
+Network Delivery Status +: Network Ack
+Priority/Delivery : NonEaS
+Message Input Reference + 1844 260202bakakg22_generic001099000000740
+ee ecco eenebeeuneceeckolle Message Header =--==945--+=<---n——~- <a
+MX Input : pacs.008.001.08 CBBRPlus-pacs.008.001.08_FIToFICustomerCr
+editTransfer
+Requestor DN ¢ OUrKXX, OMbakakg22} osswift
+Responder DN : OURxxx, O=spdbonsh, omswift
+User Reference: BA260202-1090913
+VETR : pe o2beb4—c120-49eb-b904- 68 £41d14c680
+Service Name : swift.finplus i
+Non-repudiation Indicator: False
+SWIFT Reference: swi01001-2026-02-02T12:44:40.55614.21431992
+SWIFT Request Reference: SNL51478-2026-02-02T12:44:39.2894059 .2198132
+CBT Reference: 75££b394-002c-41£1-9aa4—3c59ca72c9db
+Store-and-forward Input Time: 0102:2026-02-02T12:44:40
+Signing DN ; cen=bakakg, o=bakakg22, omswift
+~----------~---------------- Message Text qn ssn
+<AppHdr xmlns="urn:iso:std:iso:20022:tech:xsd:head.001.001.02">
+<Fr>
+<FIId> :
+<FinInstnid> $3
+<BICFI>BAKAKG22</BICFI> |
+</FinInstnId> i
+</PIId>
+</Fr> i
+<To> i?
+<FIId> :
+<FinInstnIid>
+<BICFI>SPDBCNSH</BICFI> |,
+</FinInstnIid> }
+- </FIId> i
+=< </To> i
+> <BizMsgIdr>BA260202-1090913</BizMsgldr>
+= <MsgDefIdr>pacs.008.001.08</MsgDefIdr>
+<BizSvc>swift.cbprplus.03</BizSve>
+= <CreDt>2026-02-02T17:28:56.5966152+06: 00</CreDt>
+; <PssblDplct>false</PssblDplct>
+<Prty>NORM</Prty> rain
+ax. </AppHdr>
+<Document xmlns="urn:iso:std:iso;20022:tech:xsd:pacs.008.001.08"> 5
+ps <FIToFICstmrCdtTrf> ee ei
+es <GrpHdr> | |
+S <Magid>BA260202- 1090019. AHi age
+Pi <CreDt Tm>2026-02-02T17:28:56.5966152+06:00</CreDttm
+5 <NbOf£Txs>1</NbOfTxs> Eee ties | |
+ts <SttlmIn£f> iI “ay —
+Es <SttlmMtd>INDA</SttlmMtd>! ||! @xx Afar sarin ax
+4 <othr> Re i —| 02 Ae wwe | 27
+ae <Id>99010154100000138</1d>. = i eau. |
+& </Id> AILS | ee |
+oA </SttlmAcct> aM
+AY </Sttlminf> ryt!) 1) Bi
+< </GrpHdr> aa)
+3] <CdtTrfTxInf> ee):
+< <PmtId> .
+= <InstrId>BA260202-109091%
+‘ <EndToEndId>NOTPROVIDED</ Bi)
+</Pmtid> a
+a i)
+f i
+! ia il

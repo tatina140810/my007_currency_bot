@@ -1,0 +1,61 @@
+02/02/26-20:07:12 PrinterRSK-3418-000001 1
+OT
+--------------------- Instance Type and Transmission ------------=-
+Notification (Transmission) of Original sent to SWIFT (ACK)
+Network Delivery Status : Network Ack
+Priority/Delivery : Normal
+Message Input Reference : 2006 260202SESVKG22AXXx4780364135
+motte sco ore nano wne— Message: (Header: Sassen arenas
+Swift Input : FIN 103 Single Customer Credt Transfer
+Sender : SESVKG22XxxX
+OJSC ELDIK BANK
+BISHKEK KG
+Receiver : GENODEFFXXX
+DZ BANK AG DEUTSCHE ZENTRAL-GENOSSENSCHAFTSBANK
+FRANKFURT AM MAIN DE
+UETR : b£779£52-99c7-4542-935e-cS4934e3£d538
+mmm rn en -- Message ‘Text jr am ae
+20: Sender's Reference
+260202/004/318
+23B: Bank Operation Code
+CRED
+32A: Val Dte/Curr/Interbnk Settld Amt
+Date : O02 February 2026
+Currency : EUR (EURO)
+Amount Fs #165299, 08%
+50K: Ordering Customer-Name & Address
+41290043130835653
+OSOO SARA TREYD
+,KYRGYZSTAN,G. BISHKEK OKTYABRSKIY
+R-N MKR 5 D. 42 KV. 67
+53B: Sender's Correspondent —Location
+4130463
+57A: Account With Institution - FI BIC
+BCITITMM
+INTESA SANPAOLO SPA
+HEAD OFFICE
+MILANO IT
+59: Beneficiary Customer-Name & Addr
+/IT34F0306937839100000008034
+IRPLAST S.P.A
+ADRES: VIA A.DE GASPERI 10 Z.I. TERR
+AFINO 50053 EMPOLI (FE) ITALY
+70: Remittance Information oy
+PAYMENT FOR POLYPROPYLENE FILM ACC.
+TO CONTR.NO,06/26 DD) 16.01.2026 AND
+INVOICE NO.06/26 DD 16-01-2026 0
+71A: Details of Charges
+ouR ; r eo
+oases e Message Trailer —------~--~-----------~—
+(CHK: 11COS41BEDAL}, >
+PKI Signature: MAC=EGe e ‘|
+1
+f - . —
+Lp
+p i
+ore . m
+ae. oe
+ie ae
+at a
+. a
+, tent ya |

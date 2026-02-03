@@ -1,0 +1,40 @@
+‘Eriority/Delivery -"  wechev Te
+_tsssage Input Reference : 1950 260202BAKAKG22 AXXX6653661788
+"Bie Enpot | Pan 0s Sintle MigeoMl rece Greg
+Sender : BAKAKG22xxx ia gee ransfer rl
+BAKAI BANK OJSC lw an
+BISHKEK KG | :
+Receiver : SOLADESTXXx pipe th “a
+LANDESBANK BADEN-WUERTTEMBERG T—
+STUTTGART DE | | a9
+UETR : bd380b22-003a-41£1-9aa4l 6d9e324ba4e£ ol
+nny eee TTT <Message [Text ----=+===---===- ==
+20: Sender's Reference | Sa
+BA260202-1181 al!
+23B: Bank Operation Code Hy { ie
+CRED '
+32A: Val Dte/Curr/Interbnk Settld Amt fi
+Date : 03 February ,2026 a
+Currency : EUR (EURO) | es) (ft
+Amount : 1] |" #36225; 008 ae
+50K: Ordering Customer-Name & Address Pete
+/1240020002140975 in eae a
+1/LLC SARA TRADE be i tet Lagi =e
+2/5-MICRODISTR., 42, 67 ||, FieA" ,
+3/KG/BISHKEK re latigat ae?
+6/KG/TXID/02908202510171, ae
+57A: Account With Institution - FI BIC a
+DEUTDE5M570 | i ee
+DEUTSCHE BANK AG ' ‘a She wr
+KOBLENZ DE el
+59: Beneficiary Customer-—Name & Addr Nig
+/DE97570700450020951000 oy viinp ite
+KLOCKNER PENTAPLAST EUROPE GMBH AND _. : vi
+NROTH, 56401 MONTABAUR, INDUSTRIESTR =| | NEA OUSe <BANAL BAB \
+70: Remittance Information | | orl
+PREPAYMNT FOR POLYETHYLENE TEREPHT = Ly | > Peete Loy
+HALATE FILM ACC. TO CNTR.ND 210637) ee
+71A: Details of Charges . cep | ie
+OUR ncn Pater 2
+{CHK:ED987126BB52} aaa
+PKI Signature: MAC-Equivalent

@@ -1,0 +1,60 @@
+Ni
+at
+30701726-19130330 PEANKOEBAKAY #486-000001 1
+(VR
+eben eee eee nnesss--= Instance ree and Transmission -<-----------—-
+Notification (Transmission) of |Paiiginal sent to SWIFT (ACK)
+Network Delivery Status : Netwie Ack
+Priority/Delivery : Nore
+Message Input Reference +: 1930} 46013 0BARAKG22A%X%6 649661577
+mtecosSnubeeweuslsuceccses= ees gpm SCAGSE, = 99 —o nner
+Swift Input +: FIN 103 Single diiatomer Credt Transfer
+Sender t BAKAKG22XXX
+BAKAI BANK OJSC
+BISHKEK KG
+Receiver : SOLADESTXXX
+LANDESBANK BADEN-WUBR TEMBERG
+STUTTGART DE |
+UVETR : €46aed98-fddc-41f£0-9aa4 py de2£940fa9
+SeeSeee Ue ce acon aeue cue an sae MOSBAEe (ROXC momma a aa
+20: Sender's Reference oh}
+BA260130-5261 | |
+23B; Bank Operation Code 4h
+CRED 1 Wal
+32A: Val Dte/Curr/Interbnk Settpae Amt
+Date : 30 Janua Vi2026
+Currency ; EUR (EURGS ||)
+Amount H 1 Bil #64635,05#
+50K: Ordering Customer-Name & Adress
+/1240020002140975 Hi |
+1/LLC SARA TRADE a |
+2/5 MICRODISTR., 42, 67 Weal |
+3/KG/BISHKEK Wel | '
+6/KG/TXID/02908202510171 [fii ) ) <
+57A: Account With Institution 7 Bt BIC
+COBADEFFXXX iy |?
+COMMERZBANK AG ; as |
+FRANKFURT AM MAIN DE | i :
+59: Beneficiary Customer-—Name |B Addr
+/DE49464410030231653700 | | Hh .
+GEFU GMBH Witt.
+GERMANY, D-59889 ESLOHE, BR RUKWEG, 28
+70: Remittance Information tic \
+PREPAYMENT FOR FOOD STORAGE CONTAIN eas A
+ER ACC.TO CNTR NO.GG25 DD /p$09.25 DAO SEAN BAN
+AND INVOICE NO.1518960 DD |P4..01.26 © 28
+71A: Details of Charges Hi | a 0 108
+OUR hid | BY
+ee Mess He trailer ----— CAR AST —
+{CHK:115AFE7D8CB9} i} ets O°8R avopot
+PKI Signature: MAC-Equivalent Hh | ; Bas
+2 i ie
+——s ii } ;
+j 1} Ea
+‘ | MY} 33%
+: ihn}
+' i'l
+: fant at ‘
+i. ie
+1 4s
+= 7 ; RE Habe;

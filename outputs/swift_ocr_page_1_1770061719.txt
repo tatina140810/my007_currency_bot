@@ -1,0 +1,67 @@
+“SinatePrty>NORME/INSERPFEY? |||)
+<SveLvl> Hitt ia)
+<Ca>G001</Cd> WEDS gold
+</Svebvl> si} By ta :
+19h AS ATL”
+</Pme Tp Ine imamt Coys "CNY">182250.00</IntrBkstt1mamt>
+<IntrBkStt lmDt>2026-02-03</IntrBkStt lmbt>
+<instdamt Ccy="CNY">152280,00</Inatdamt>
+<ChrgBr>DEBT</ChrgBr> j
+<InstgAgt>
+<FinInstnId>
+<BICFI>BAKAKG22</BICFI> |
+</PinInstnid>
+</InstgAgt>
+<InstdAat>
+<FinInstniId>
+<BICFI>SPDBCNSH</BICFI>
+</FinInstnid>
+</InstdAgt>
+<Dbtr>
+<Nm>LLC "TEZKADAM"</Nm>
+<PstlAdr>
+<StrtNm>AYNI</StrtNm>
+<BldgNb>201</BldgNb>
+<Room>43</Room>
+<PstCd>720047</PstCd>
+<TwnNm>BISHKEK</TwnNm>
+<Ctry>KG</Ctry>
+</PstlAdr>
+<Id>
+<OrgId>
+<Othr>
+<Id>01604202510290</Id>
+<SchmeNm>
+: <Cd>TXID</Cd>
+A </SchmeNm>
+z= </Othr>
+; </OrgId>
+ss </Id> ny,
+= </Dbtr> : Se
+= <DbtrAcct>
+a <Id>
+= <Othr> y 3
+: <Id>1240020001962638</Id> Pe
+od </Othr>
+= </Id>
+E </DbtrAcct> %, BAKAM BApip 1s :
+7 <Dbt rAgt> & = BAKAI BANK> G
+4 <FinInstnId> t
+; <BICFI>BAKAKG22</BICFI> 02-02 2006) 27 :
+</FinInstnid>
+< BMK 124007
+| <cdtange> quaere iets
+<FinInstnId> oe :
+<BICFI>TZBKCNBTXXX</BICFI>
+</FinInstnId> buncleaue i
+</CdtrAgt> raf ;
+<Cdtr> teat =
+<Nm>HANGZHOU GFF I E NS STO
+<Pst 1Adr> MPORT |AND ESPOBT G3 st 2.
+<StrtNm>EUROPE CENTER > EFC |, CANGQIAN, YUHANG</StxtNm>
+<BldgNb>T9</BldgNb> ’
+<Room>RM 901-01</Room> ne
+<TwnNm>HANGZHOU, ZHEJIANG</TwnNm> ;
+<Ctry>CN</Ctry> | '
+ae
+—— 23 ||

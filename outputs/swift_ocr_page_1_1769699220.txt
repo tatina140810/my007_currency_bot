@@ -1,0 +1,63 @@
+Let Nita
+29/01 /26-19:52:29 PrinterBAKAY-7972-000001 Fi
+Soto TSS s--==-------_ Thstance Type and Transmission -----~---~____
+Notification (Transmission) of Original sent to SWIFT (ACK)
+Network Delivery Status : Network Ack
+Priority/Delivery t Normal
+Message Input Reference : 1952 26012 9BAKAKG22A%%X6648661383
+even Ob na Ess MOSBRQE(HORUEE Scunleccelseseweeconee eee
+Swift Input : FIN 103 Single Customer Credt Transfer
+Sender : BAKAKG22XXxX
+BAKAI BANK OJSC
+BISHKEK KG
+Receiver : SOLADESTXXX
+LANDESBANK BADEN-WUBRTTEMBERG
+STUTTGART DE
+UETR : l4da0bfe-fd17-41£0-9aa4-f££76£a22e208
+Wot r aroma nnnnnnnnnmnn— Message Text ---------<----.-22
+20: Sender's Reference |
+BA260129-4234 |
+23B: Bank Operation Code !
+CRED
+32A: Val Dte/Curr/Interbnk Settld Amt
+Date : 29 January 2026
+Currency : EUR (EURO)
+Amount G i #14680, 70#
+SOK: Ordering Customer-Name & Address
+/1240020002140975
+<4 1/LLC SARA TRADE ee
+~ 2/5 MICRODISTR., 42, 67 \
+< 3/KG/BISHKEK Hi]
+= 6/KG/TXID/02908202510171 aye
+é S7A: Account With Institution - FI, BIC
+STSPAT2GXXX
+STEIERMAERKISCHE BANK UND SPARKASSEN AG
+: GRAZ AT ee
+; 59: Beneficiary Customer-Name’& Addr : —
+4 /BT752081500044086353 1 Heat eee
+SNOW TECH GEORG PERNER ‘ OAD SARA NK
+AUSTRIA, SCHILDLEHEN 81, | 8972 RAMSA Oa oe
+U DACHSTEIN Pee en Tn. anne 23 \
+70: Remittance Information ; 79 Or WS a
+PAYMENT FOR SPORTS EQUIPMENT (HELME, \ RT sor \
+SNOWBOAR) ACC.TO CONTRACT NO.SNO9 DD yt RNP ena 8,
+09.12.2025 AND INV.NO.2025-036 DD <Buus i: :
+09.12.2025 Tipe has V
+71A: Details of Charges alte
+OUR WAS mana - a ===
+oon- === 8-4-4 -4---+=+-= Message ‘Trailer SST Sn
+{CHK:C534405E064F} teins
+PKI Signature: MAC-Equivalent) il ii 7
+etd i
+aba <5
+Sean ee
+ot) Bast
+—_ ATES a o ti ¢
+OMe saben am :
+i \ ae} ama ks
+i | , ‘ ar
+aie _ ee
+an L
+Lal '
+|
+ay

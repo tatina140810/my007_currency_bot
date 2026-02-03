@@ -1,0 +1,58 @@
+Weert]
+ij
+Ween 726 eras Ge j ,
+Bae PrintexBAKA¥-7953-000001 Ft
+Soar enna a===--—=----— Instance Type and Transmission -—==—=-——----—
+Notification (Transmission) of Original sent to SWIFT (ACK)
+Network Delivery Status +: Network Ack
+Priority/Delivery : Normal
+Message Input Reference +: 1943 26012 9BAKAKG22AKXX6648661365
+Tasso === Message |Header —----~---~-----_____-----——
+Swift Input +: FIN 103 Single Customer Credt Transfer
+Sender 3: BAKAKG22xxx i
+BAKAI BANK OJSC
+BISHKEK KG '
+Receiver : SOLADESTXXX
+LANDESBANK BADEN-WUERTTEMBERG
+STUTTGART DE
+UETR : 80ede9bc-fd14-41£0-9aa4—e8789eb94aa0
+TTS mamma nna mmm Message Text ----—------==--=— ==
+20: Sender's Reference
+BA260129-4208
+23B: Bank Operation Code
+CRED
+32A: Val Dte/Curr/Interbnk Settld Amt
+Date > 29 January ;2026
+Currency : EUR (EURO)
+Amount : x #29628,12¢
+50K: Ordering Customer-Name & Address
+41240020002140975
+1/LLC SARA TRADE ‘
+2/5 MICRODISTR., 42, 67
+3/KG/BISHKEK
+6/KG/TXID/02908202510171
+57A: Account With Institution - FI BIC
+WEAVGB2LXXX
+WEAVEPAY LIMITED a
+LONDON GB OFS gan
+59: Beneficiary Customer-Name & Addr Ce —
+/GB51WEAV00989721010696 =... - yu, = os peel
+EST.MED LABORATORIES OU |: 19 gy 08 \28
+ESTONIA, 11216, TALLINN, SUYR-MANNI STS
+BU EN By ees ii be WHE OLETN9PE au
+70: Remittance Information ; 5, BuUner. TM
+PAYMENT FOR MEDICAL CONSUMABLES (RO ‘ UY
+BES, MASKS) ACC.TO CNTR NO.2/KG | DD
+26.09.25 AND INV.NO.30 DD 12.01.26
+71A: Details of Charges she loaned
+OUR en awen ; Bike Ses
+po ee neo -- === === ===== Message ret) ei ant
+(CHK: 852CBEE8F12B} Vebig Vii : enacs
+PKI Signature: MAC-Equivalent |. ;..<,
+at es !
+! ey ’ y :
+stat tel) Mie roe ae
+ot eae (Orta ee
+ak Bente Seale
+}
+-

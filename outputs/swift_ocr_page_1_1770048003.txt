@@ -1,0 +1,64 @@
+\3
+Woon eneeneaa=------- Instance Type and Transmission ~~~-~~~~~~~~——
+Notification (Transmission) of Original sent to SWIFTNet (ACK)
+Network Delivery Status ¢ Network Ack
+Priority/Delivery + Normal
+Message Input Reference } 1848 260202bakakg22_.generic001099000000746
+anne eee ee enna eaaas-ae= Message Header -=<<<<<<<2<9- 96 --
+MX Input t pacs.008.001.08 CBPRP1US-pacs .008.001.08_FIToFICustomerCr
+editTransfer
+Requestor DN : Ou=XXX, OMDakakg22, omswift
+Responder DN : ou=xxx, o=spdbonsh, omswift
+User Reference: BA260202-1090793
+VETR : 72e9fe00-S63e~45e1-bace-fF555£9£bd5 94
+Service Name : swift.finplus
+Non-repudiation Indicator: False
+SWIFT Reference: swi01001~-2026-02-02T12:48:46.54059.21616142
+SWIFT Request Reference: SNL51478-2026-02-02T12: 48: 46.2894059.2198722
+CBT Reference: 2£9a0b9e-002b-41£1-9aa4—-49780c8aa5id
+Store-and-forward Input Time: 0102:2026-02-02T12: 48:46
+Signing DN : cn=bakakg, o=bakakg22, o=swift
+peewee ne eeen na ee enna -a-a==- Message Text --—-99 9999875 ee
+<AppHdar xmlns="urn:iso:std:iso:20022:tech:xsd:head.001.001.02">
+<Fr>
+<PIId>
+<FinInstnid>
+<BICFI>BAKAKG22</BICFI>
+</FinInstnid>
+</FIId>
+</Fr>
+<To>
+<FIId> :
+<FinInstnid>
+<BICFI>SPDBCNSH</BICFI>
+Ss </FinInstnId>
+gr </FIId>
+= </To>
+Z <BizMsgIdr>BA260202-1090793</BizMsgIdr>
+= <MsgDefIdr>pacs .008.001.08</MsgDefIdr>
+=> <BizSvc>swift.cbprplus.03</BizSvc>
+S <CreDt>2026-02-02T17: 28:56 .5146939+06:00</CreDt>
+De <PssblDplct>false</PssblDplct>
+ae <Prty>NORM</Prty>
+aS </AppHdr> j
+ay <Document xmlns="urn:iso:std:iso;20022:tech:xsd:pacs.008.001.08">
+ae <FIToFICstmrCdtTrf£> '
+es <GrpHdr>
+AS: <MsgId>BA260202-1090793</Msgid>
+Se <CreDtTm>2026-02-02T17:28:56,5146939+06:00<
+Ms <NbOfTxS>1</NbOfTxs> 3] 4 sexopetay j
+eho <SttlmIn£> tlt 4
+a <SttlmMtd>INDA</SttlmMtd> | ; QAO <BAKAR WArin/]
+BENS <SttlmAcct> ! (Oar f
+peas <Id> er oil
+Re <Id>99010154100000133</Id> ESE EP all
+eee </Id> i hed al cyouna. 38. |
+ae </SttlmInf> a] ar
+ae </GrpHdr> tee |
+— <CdtTrfTxinf> ; i a
+SA <PmtId> aa bP ics ‘3
+z <InstrId>BA260202-109079a<
+. <EndToEndId>NOTPROVIDEDE) |
+‘ <UETR>72£9£e00-563e~45; |
+ae </Pmtid> i aoa” , ; fl
+hen ; i

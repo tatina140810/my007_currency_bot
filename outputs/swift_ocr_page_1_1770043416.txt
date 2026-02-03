@@ -1,0 +1,60 @@
+02/02/26-20:07:33 PrinterRSK-3420-000001 1
+ToS ea ~~ —===——= Instance Type and Transmission -—-~---~~~-__._
+Notification (Transmission) of Original sent to SWIFT (ACK)
+Network Delivery Status : Network Ack
+Priority/Delivery : Normal
+Message Input Reference : 2006 260202SESVKG22AXXX4780364137
+epee aa TTT Tanto ta=- Message Header —-=—-=-<=- 2 oe
+Swift Input : FIN 103 Single Customer Credt Transfer
+Sender : SESVKG22Xxx
+OJSC ELDIK BANK
+BISHKEK KG
+Receiver ; BKCHCNBJ760
+BANK OF CHINA
+XINJIANG BRANCH
+URUMQI CN
+UETR : b1£S86ca~S109-4698-9931-bd1502cb7681
+cnt rr Trt Message Text -----------—~---_ 5
+20: Sender's Reference
+260202/004/320
+23B: Bank Operation Code
+CRED
+32A: Val Dte/Curr/Interbnk Settld Amt
+Date : 02 February 2026
+Currency : CNY (YUAN RENMINBI)
+Amount H #7500, 00#
+SOK: Ordering Customer-Name & Address
+41290043130853538
+7/0800 TEZKADAM//
+KYRGYZSTAN, G. BISHKEK LENINSKIY R-
+N UL. AYNI DOM 201,KV.43//
+S7A: Account With Institution - FI BIC
+PCBCCNBJSHX
+CHINA CONSTRUCTION BANK CORPORATION
+SHANGHAI BRANCH
+PUDONG CN
+59: Beneficiary Customer—-Name & Addr
+/31050179380000000798
+NEW PION FIBERS TECH CO., LTD
+ADRES: BUILDING 2. 1918 XUPAN ROAD.
+JIADING. SHANGHAT 201800, CHINA
+70: Remittance Information — Beane...
+PAYMENT FOR LED-LAMES ACC.TO CONTR.
+NPF29 DD 29.01.2026 AND INV.SFPI260
+12902 DD 2970152026 S| 5
+71A: Details of Charges :
+OUR ne) Ne
+--------- <== fessage Trailer —-~-——~-~--~~~-~~~~------
+PKI Signature? SMe
+: 4
+"
+oy
+k
+F “ag
+4S a. ath
+- wo the
+f ‘s is ag wot
+, Bas
+a,
+te ae
+=“ > ea

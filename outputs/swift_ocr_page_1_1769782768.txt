@@ -1,0 +1,68 @@
+f Bile
+i te
+wnt
+} au
+| 30/701/26-19:16:56 PrinterBAKAYe 465=000001 1
+Caran sett ate weretor eater Instance We UP Transmisss
+RE 4; mm. eee eee eee ee
+Notification (Trahamiasion) of! bi Tqthal sant to Swit (ACR
+30/01/26-19:32130 PrintorBAKRA’ H§490-000001 i
+Nh,
+nee eee eee enna aa-~s— Inatance Fy) and Transmission <-<<<<<<<------
+Notification (Tranamiasion) of Ps iginal aént to SWIFT (ACK)
+Network Delivery Status : Net He Ack
+Priority/Delivery : Norah,
+Message Input Reference : 193 fk; €0130BAKAKG22A%X%K6 649661561
+eeeweenneneeneeee cou ullls- Mesbdb@)| Header ~—<=-<---=--4<-<-==---~---
+Swift Input +: FIN 103 Single GhBtomer Credt Transfer
+Sender : BAKAKG22XxXX |
+BAKAI BANK OJSC H
+BISHKEK KG }
+Receiver : GECGHKHHXXX 4
+HARBOUR AND HILLS FINANCIAL SERVICES LIMITED
+KOWLOON HK } \}
+UETR : 518b2508-fdd8-41f£0-9aad P 4d051d94fc¢
+--s2-----------------=--=-- Messap ireee ate eetateiateaad
+20: Sender's Reference iy
+BA260130-5190 i
+23B: Bank Operation Code Hy
+CRED iii
+32A: Val Dte/Curr/Interbnk Sett L¢ jame
+Date : 02 Februdpy |2026
+Currency : USD (US HPBRLAR)
+Amount $ I" #43520,008
+50K: Ordering Customer-Name & sHasess
+71240020002047817 ei
+LLC UMUT TRADE iat |
+ADD. 12 MICRODISTR., 75, § oat |
+BISHKEK, KYRGYZSTAN ay te
+53B: Sender's Correspondent —LqPation
+/1054170010200010900000 a
+S57A: Account With Institution p bY BIC
+ABOCCNBJ190 311}
+AGRICULTURAL BANK OF CHINA {qTHe
+GUANGDONG BRANCH i
+GUANGZHOU CN betes
+59: Beneficiary Customer—Name |fAddr
+/44467414040000076 id
+FOSHAN CITY WEHO MACHINERY GOMPANY
+LIMITED il
+CHINA, FOSHAN GUANGDONG, SAU NHELI
+TECHNOLOGY PARK ZHENHUAXI /ROAD
+70: Remittance Information Lill
+PAYMENT FOR WOODWORKING EQ EPMENT
+ACC.TO CNTR.NO.FCW10 DD 10}21.2025 ano eA
+AND INVOICE NO.2 DD 21.014P026.) Our
+JIA: Details of Charges WERE Tey 28
+_ +2: Sender to Receiver Informapton’ | : a
+’ oth INS//; B28) WR Rae 199810107 55,
+ine Messape Trailer ------ Rete ype =
+PKE Signature: MAC-Equivalent: 4/1). ) |
+> Pa a , }) |
+= ih; }
+uN Hf
+°- .
+— dhe
+Us ob aes |
+Fi . J | sla
+So ia hs tee :

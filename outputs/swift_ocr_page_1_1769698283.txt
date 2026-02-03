@@ -1,0 +1,57 @@
+ro ie 1H i) —= ™“" q
+------------------+-- Instance |Type and Tr aden seen an ee
+Notification (Transmission) of Grigines iene bo SAREE (ACK)
+Network Delivery Status : Network) Ack
+Priority/Delivery t wal
+Message Input Reference : 1951 6012 9BAKAKG22AXXX%6648661381
+ecb en coe eeeenmeeeeees Mes8KQE HORMEL —<4868 88K — 88 te
+Swift Input : FIN 103 Single Customer Credt Transfer
+Sender +: BAKAKG22XXX |
+BAKAI BANK OJSC i}
+BISHKEK KG |
+Receiver = SOLADESTXXX
+LANDESBANK BADEN-WUERTTEMBERG
+STUTTGART DE
+VETR : 14abde 98- £1 7~—41£0-9aa4-e24cc0das £37
+Ce een eee eeenemetamese MEBBEGE | [TORE 59568 Se eae
+20: Sender's Reference
+BA260129-4232
+23B: Bank Operation Code
+CRED
+32A: Val Dte/Curr/Interbnk Settld Amt
+Date : 29 January ;2026
+Currency : EUR (EURO)
+Amount 3 hited #15949,77#
+50K: Ordering Customer-Name & Address
+/1240020002140975 tlt
+1/LLC SARA TRADE bine ba
+2/5 MICRODISTR., 42, 67 |, {
+3/KG/BISHKEK sy
+== 6/KG/TXID/02908202510171... .\)
+a 57A: Account With Institution —, FI, BIC
+= SOLADEST600 liom
+= BADEN-WUERTTEMBERGISCHE BANK (TRADING AS LANDESBANK BADEN-WUERTTEMB
+SS: ERG)
+fs IZV DEPARTMENT '
+ay STUTTGART DE By THEM
+< 59: Beneficiary Customer-Name & Addr’ .
+a 7DE59600501010002511391 1) _
+ae WINTERHALTER GASTRONOM GMBH) TOAD SBARS DANKO
+= GERMANY, 88074 MECKENBEUREN, WINTER @®oos— ||
+ey HALTER STR., 2712 | t Racal ag grits \28!
+es 70: Remittance Information Wk A ty isc eal a |
+se PMNT FOR WASHING MACHINE ACC.TO CNT eae
+e R NO.20250926-03 26.09.25, INV,NO. 1 Wea pees
+= 00262379 19.12.25, 100264359 20-01. \_ bee
+] 26, 100264866 26.01,100265061 27.03 K
+= 71a: Details of Charges jie thy ,
+a OUR POPES ANGST Stas ee Ae PII Det aero
+4 Wee eee eee eee eeeaasa saa Mespage ns Gly ass aaT :
+: {CHK:D9992C3CF86D} iM Mai g
+PKI Signature: MAC-Equivalent) \ ih :
+; i Hemet bes WHEE |
+sae ae = _— wi =)
+i! ae “a
+" a
+* i t
+Py

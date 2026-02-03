@@ -1,0 +1,70 @@
+shia) ili)
+: {
+oo/on/ae tec 4ai49 il sss ane 2
+EO
+<Instrerty>NORM</InstrPrty> | |)
+<SvcLvl> }
+<Cd>G001</Cd> {
+</SvcbLvl> |
+</PmtTpInf>
+<IntrBkSttimamt Coy*"CNY">34000.00</IntrBkstt lmAmt>
+<IntrBkStt lmDt>2026-02-03</IntrBksttlmpt>
+<InstdAmt Coy="CNY">34000,00</InstdAmt>
+<ChrgBr>DEBT</ChrgBr>
+<InstgAgt>
+<FinInstnid>
+<BICFI>BAKAKG22</BICEI>
+</FininstnId>
+</InstgAgt>
+<InstdAgt>
+<FinInstnId>
+<BICFI>SPDBCNSH</BICFI>
+</FinInstnIid>
+</InstdAgt>
+<Dbtr>
+<Nm>LLC "TEZKADAM"</Nm>
+<PstilAdr>
+<StrtNm>AYNI</StrtNm>
+<BldgNb>201</BldgNb>
+<Room>43</Room>
+<PstCd>720047</PstCd>
+<TwnNm>BISHKEK</TwnNm>
+<Ctry>KG</Ctry>
+</PstlAdr>
+<Id>
+<OrgId>
+: <Othr>
+<Id>01604202510290</Id>
+<SchmeNm>
+<Cd>TXID</Cd>
+</Schmenm>
+</Othr>
+</OrgId>
+</Id>
+‘ </Dbtr>
+= <Dbt rAcct>
+<Id>
+: <Othr>
+f <Id>1240020001962638</Id>
+Soe </Othr>
+= </Id>
+* ; </DbtrAcct>
+Stet <Dbt rAgt>
+es <FinInstnId> | (eee AA
+ay <BICFI>BAKAKG22</BICFI>, (SJouse anavar apie
+ears? </FinInstnid> Fea de 5
+neo </Dbtragt> { 02-0 oh \ 27
+Sie <Cdt rAgt > '
+et <FinInstnid> NG I Fe vow ovannionay 107,
+pone <BICFI>ICBKCNBJSZU</BICFI> | Le Btn payee
+ee </FinInstnid> apt tsell) :
+Rae </Cdtragt> 1a fe =
+Ne <Nm>SUZHOU FANXI TECH CO’ LTD</Nm>
+ay <PstlAdr> el ls
+Se <StrtNm>SUZHOU NATIONAL HI=TECH DISTRIC SINYAN ROAD</StrtNm>
+el <Room>NO.8</Room>
+ee, <Ctry>CN</Ctry> :
+oak 7
+Va F
+es — ie :
+Se ite, _—

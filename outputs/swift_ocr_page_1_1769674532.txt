@@ -1,0 +1,66 @@
+27/01/26-38120:02 printerBAKAY~6873-000002 i
+AES pio ee ee eee ee
+—-—- ee _-- Inatance Type and Transmission —-<<9"~——"""~=
+Notification (Transmission) of Griginal sent to SWIPTNet (ACK)
+Network Delivery status ; Notwork Ack
+priority/Delivery + Normal
+Message Input Reference 1610 26012 Tbaxakg2Z2_gonericod1093000000614
+-- Measege Header -- --- _aeeeroeonsen=
+xX Input 1 pac 5 ,008.001.08 CBPRPlUSs paca .008. 001, 08_FITOPICustonerce
+edittransfet
+Re est nt ye RRM, € bakakg22,orawitt
+: er Or <xx, omspdbensh, omaws ft
+thn debe -pebdd-1876d3f 369c8
+‘ nplus
+: ir stor False
+? < ‘ ws 51-2026-9) 27712:09159.19468.27049242
+s Reg fer e@: SNLS1478-2026-01 Q7T12109159.2894058.2477512
+BT Rele JadscOO-fbIT-41£0 Saad 2clhazett262
+store and-forward [aput Tine: 0102: 2026-O1-27TL2:09259
+Signing ON + cnebakakg, ombakakgZ2, onmsuift
+--" -- - --- Message Text wea re
+<kpplidr ~- inactorniieoratd: 120120022: techtxed:head. 002-003 -02°
+<Fr>
+<Fild>
+<FinInstnid>
+<BICF 1>BAKAKG22</BICFI>
+</Fininstnid>
+</Fild>
+</fr>
+<To>
+<Fild>
+<FinInstnids we
+<BICFI>SPOBCNSK</BICFI> Sod
+</FinInstntd> (ey awe
+e/FIiar ms 28
+</Tor 37
+epiztsgidrBAazb0227 1086821</BLzMsgidr> ee
+eMaqbefidr>pacs. 008.001 08</MaqDefidr> cht soe
+cps rsve>swi ft .cbprplus .03</BszSvcr vies ~
+<Crept>2026 01-2717: 34201 - 2366608 0061 00</Crent> =
+epssblDpict>talse</Psabloplct?
+<Prey>NORM</Prey?
+</AppHdr>
+<Document gningaturn:iso:stdi iso} 20022:tech:xsd:pacs .008 002 .08°>
+<FIToFrIcatmrCatTrf>
+<GrpHdr>
+<Magid>BA260327~-1086821</MsgId>
+se yen? 2026-01"27T17234 201 - 1366604406 s00</ Cede Tae
+<NbOfTxs> 1</NbOfTxS>
+<sttlmInft>
+eSut lmNtd>INDA</Stt lent d>
+<SttlmAcct>
+<Id>
+<Othr>
+€1d>99010154100000133</1d>
+</Othe>
+Re </Id>
+Rated </SttimAcct>
+Cay </Sttimin£g>
+Se <</GrpHdr> {) Joa ims bs
+mee | <CdtTrftxint> M } “dl :
+a | <Pmt Id> ott. “a
+cea cInstrid>BAZ60L27-10860e1e/ anes
+ited <EndToEndId>vOTPROVIDEDS/ Eng! j
+eee <VETR>ae6£4804-4760-4064
+</PatId> ie

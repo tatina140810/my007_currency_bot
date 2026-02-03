@@ -1,0 +1,51 @@
+‘Priority/Delivery = Noxma a fay) \
+Message Input Reference : 1944, 260202BAKAKG22Axxx KXXG65SS661765 4
+Sie) 5 ee sie Bidston So ee
+Swift Input : FIN 103 Single cx stomer Credt Transfer Baier sede ,
+Sender ? BAKAKG22XxxX i Ti teitit a vhs
+BAKAI BANK OJSC tie {
+BISHKEK KG iti]
+Receiver : GECGHKHHXXX Reales
+HARBOUR AND HILLS FINANCIAL SERVICES LIMITED
+KOWLOON HK | i
+UETR : 6147a0e2-0036-41£1-9aa4~056ce72ae5a0 i AL
+Oe ne a Message Text ES SS ee
+20: Sender's Reference |
+BA260202-1153 | ola ;
+23B: Bank Operation Code ri ud oa
+CRED | ‘Sant
+32A: Val Dte/Curr/Interbnk Settld Amt Se
+Date : 03 February 2026 3 ie
+Currency : USD (US DOLLAR) %
+Amount : “7 "#180246, 00# .
+SOK: Ordering Customer-Name ¢ Address ‘og
+/71240020002047817 cae i“¥
+LLC UMUT TRADE ae aN ia
+ADD.12 MICRODISTR., 75, 56 | ot
+BISHKEK, KYRGYZSTAN Wide tag at.
+53B: Sender's Correspondent ~Location ae,
+/1054170010200010900000 ;. 1.1.) ‘aan
+S7A: Account With Institution — FI BIC ery:
+CITISGSGXxXx 1 i pa ta 2
+CITIBANK,N.A. hk Se
+SINGAPORE SG aS a lt
+59: Beneficiary Customer—-Name. & Addr ae 8 i
+/0864955142 fe _ ae
+ASUS GLOBAL PTE. LTD. ‘alt! de _ you
+SINGAPORE, EIGHTRIUM, CHANGI BUSINE Be Pray gee on
+70: Remittance Information AE i | So
+PMNT FOR MONITORS ACC.TO ¢ ER <AGP a, joe ‘vas a
+29 DD 29.01.2026 AND INV.NO 2 DB a Loe @8 25)
+02.02.2026 ORDER NO. 1521260 i... a angen
+11002512 DD 12.01.2026 buat ikl Me deiee Lr Bnreo 811188840407 |
+71A: Details of Charges a ee OT
+OUR it ici
+72: Sender to Receiver Information ee.
+/INS//B2B held Wiles
+a a Message | trailer Sg Bose Det ee
+{CHK:D44CBA365767} ooo
+PKI Signature: MAC-Equivalent) tik
+Wey
++ Sosa i
+Dy
+a

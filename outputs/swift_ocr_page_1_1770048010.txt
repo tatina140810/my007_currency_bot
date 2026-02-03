@@ -1,0 +1,69 @@
+’ {Pees
+<PmtTpint> Pati
+02/02/26-18:49:20 PrinterBAKAY-8963-000001 2
+<Instrprty>NORM</InstxPrty>
+<SvcLvl>
+<Cd>G001</Cd>
+</SvcLvl> | cat
+</PmtTpiInf>
+<IntrBkSttlmamt Coy="CNY¥">354070.00</IntrBkStt1lmAmt>
+<IntrBkStt lmDt>2026-02-03</IntrBkStt lmbt>
+<InstdAmt Ccy="CNY">354070,00</InstdAmt>
+<ChraBr>DEBT</ChrgBr>
+<InstgAgt>
+<FinInstnid>
+<BICFI>BAKAKG22</BICFI>
+</FinInstnid>
+</InstaAgt>
+<InstdAgt>
+<FinInstnid>
+<BICFI>SPDBCNSH</BICFI>
+</Pininstnid>
+</InstdAgt>
+<Dbtr>
+<Nm>LLC "TEZKADAM"</Nm>
+<PstlAdr> FA)
+<StrtNm>AYNI</StrtNm>
+<BldgNb>201</BldgNb>. °
+<Room>43</Room>
+<PstCd>720047</PstCd>
+<TwnNm>BISHKEK</TwnNm>
+<Ctry>KG</Ctry>
+</PstlAdr> :
+<Id> y
+= <OrgId>
+oS <Othr> F
+eae <Id>01604202510290</Id>
+a <SchmeNm>
+<S <Cd>TXID</Cd>
+= </SchmeNm>
+3 </Othr>
+- </OrgId>
+</Id> |
+aI </Dbtr>
+a <DbtrAcct> ;
+ie <Id>
+rat <Othr>
+Kor <Id>1240020001962638</Id>
+ot </Othr> | !
+ane </Id> Heat
+5 </DbtrAcct> {aihed]
+Bee, <Dbt rAgt> |
+Se <FinInstnid> (3 Lit | = . VA
+oa <BICFI>BAKAKG22</BIGEI> i [aes 4
+Se </FinInstnId> bits he cub i
+x </Dbtragt> | ee dk bp peanote (27
+ee <CdtrAgt> Ha re rg PAC Se cn
+Bs <FinInstnid> | asihg haa | [eee
+ss <BICFI>CMBCCNBS101</BICFI> || artieagiosg7: |
+4 </FinInstnid> MPS AT RE: h) —
+= Atitiise 2
+oa </Cdatragt> panel bi) |
+iS <Cdtr> ha {1
+4 <Nm>WUHAN BESTAR INDUSTRY CO.) DiDe/s
+< <PstlAdr> ee ani te ||
+: <StrtNm>NO.4=1 BUILDING) BUR
+4 TUANJIECUNS/StrtNm>. 1
+<Ctry>CN</Ctry>
+a ag a
+— : = = 4

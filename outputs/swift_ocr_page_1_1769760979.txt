@@ -1,0 +1,62 @@
+23/01/26-12:03:26 PrintefBAKAY-55681-000001 1
+SS oN SETTERS TT
+Seen ee eenna--muu----- )=6o—natance Type and Transmission ------~~---_-._
+Notification (Tranamission) of Original sent to SWIFT (ACK)
+Network Delivery Status 1: Network Ack
+Priority/Delivery : Normal
+Message Input Reference : 1203 260123BAKAKG22AXX%X6641660389
+mene eee eee anne ennui uae Massage Headér -<-<-<<-<<-+--~~~~ ~~
+Swift Input + FIN 103 Single Customer Credt Transfer
+Sender : BAKAKG22XxXX
+BAKAI BANK OJSC
+BISHKEK KG
+Receiver : SPDBCNSHXXX
+SHANGHAI PUDONG DEVELOPMENT BANK
+HEAD OFFICE
+SHANGHAI CN
+UETR : 39£733c4-£819-41£0-9aa4d-626£46d498c7
+mean ann ene aneeis Message Text =—-<=-<-=<<<=<98<99— 9
+20: Sender's Reference
+BA260123-516
+23B: Bank Operation Code
+CRED
+32A: Val Dte/Curr/Interbnk Settld Amt
+Date : 23 January 2026
+Currency : CNY (YUAN RENMINBI)
+Amount : #15000, 0O#
+S50F: Ordering Customer - ID
+/1240020001962638
+1/LLC TEZKADAM
+2/AYNI STR., 201, 43
+3/KG/BISHKEK
+6/KG/TXID/01604202510290
+53B: Sender's Correspondent —Location
+/99010154100000133
+57A: Account With Institution - FI BIC
+CIBKCNBJF TU
+CHINA CITIC BANK
+HEAD OFFICE,FREE TRADE ZONE UNIT
+BEIJING CN
+59: Beneficiary Customer—Name & Addr
+47605900000659
+ZHONGSHAN IVOGUE LIGHTING ELECTRIC
+EQUIPMENT CO., LTD
+CHINA, ZHONGSHAN CITY, . GUANGDONG, SAR EAR |
+CAOSAN, GUZHEN, HUASHENG ROAD, 16TH (OE
+70: Remittance Information
+PAYMENT FOR LAMPS ACC.TO CNTR.NO. Ot 2028- 28
+ZLE12 DD 12.12.2025 AND INVOICE 2S:
+NO.2 DD 05.01.2026 SUK PRO 07
+7JiA: Details of Charges He OS pop SS:
+OUR —
+92: Sender to Receiver Information
+{GODX/
+aw — ~~~ ~~~ ——-~~==— Message Trailer q-s smn rm n nnn
+{CHK: DAACSE096AEE}
+| PKI Signature: MAC-Equivalent
+sa
+iit,
+ns
+=. a =
+;
+a

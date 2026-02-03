@@ -1,0 +1,51 @@
+29/01/26-20:12:54 PrinterBAKAY-8006-000001 1
+eS ee era i 1d AA
+=ua----=----------=-= Instance Type and Transmission ~~--—~————————
+Notification (Transmission) of Original sent to SWIFT (ACK)
+Network Delivery Status : Network Ack :
+x Priority/Delivery t Normal
+Message Input Reference : 2012 26012 9BAKAKG22AXXX6 648661412
+pee eee eee eee =Ha=s Message Header <<9------ 9-9 neon
+°/ Swift Input : FIN 103 Single Customer Credt Transfer
+“ Sender : BAKAKG22XXX
+5 BAKAI BANK OJSC
+BISHKEK KG
+Receiver : CZ2CBCN2XXXX
+ZHEJIANG CHOUZHOU COMMERCIAL BANK CO.,LTD
+HANGZHOU CN
+VETR : dcd69464-£d18-41£0-9aa4—a5e6f£4325c2
+wo === Message! TERE
+20: Sender's Reference
+\ BA260129-4304
+23B: Bank Operation Code
+CRED
+32A: Val Dte/Curr/Interbnk Settld Amt
+Date : 29 January: 2026
+Currency : USD (US DOLLAR)
+Amount. : Patt #25300,00#
+50F: Ordering Customer - ID
+/1240020001962840 ‘
+1/ERKINDIK MOTORS LLC tet
+2/LVA TOLSTOGO STR., 142A i
+3/KG/BISHKEK ‘
+6/KG/TXID/00810202410604 ',
+53B: Sender's Correspondent -Location
+/15601142320800001215
+57A: Account With Institution - FI BIC
+ZICBCN2NXXX
+CHINA ZHESHANG BANK ‘3
+HANGZHOU CN ers Fite
+Ss. 59: Beneficiary Customer-Name & Addr GAO <BAKAR BAHK: <*°
+sae /1100000611420100001085 i Worse saan
+- a4 TIANJIN XIAOXIAO AUTOMOBILE, IMPORT
+ee AND EXPORT CO.,LID 2g -or 105 |28
+See CHINA, TIANJIN PILOT FREE TRADE ZON
+eae E, AUSTRALIA ROAD, NO.6262,ROOM 202 ann ae tase 0107
+Sees 70: Remittance Information t J e. Busuxox, ya. Mustypins, SS
+aerate PMNT FOR MAZDACX-5, LVRHDCAC9SN0416
+ret 26 ACC.TO AGMT.TIXX-2026012801-G DD
+SSeS 28.01.2026 AND INV.1 DD 28.01.2026
+Ga 71A: Details of Charges ane eh
+es wowenee-nno---------------- Message Trailer s--7---ae nooo
+Seer {CHK; 3915BFA0D35E} f ; a"
+See PKI Signature; MAC-Equivalent Mal ih = ; E

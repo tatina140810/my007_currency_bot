@@ -1,0 +1,52 @@
+29/01/26-19:53:29 PrinterBAKAY-7975-000001 1
+Notification (Transmission) of Original sent to SWIFT (ACK)
+Network Delivery Status : Network Ack
+Priority/Delivery : Normal
+Message Input Reference +: 1953 26012 9BAKAKG22Ax%%6648661386
+Sere eee kee ees Messagd Header OO OS A SO OS a Sia als Sh
+Swift Input : FIN 103 Single Customer Credt Transfer
+Sender t BAKAKG22XXX
+BAKAI BANK OJSC |
+BISHKEK KG |
+Receiver + SOLADESTXXX
+LANDESBANK BADEN-WUBR TEMBERG
+STUTTGART DE |
+VETR : 14d60e8c-fd17~41£0-9aa4-—bé6eddi0f£d674
+WOT nnn am=—---- Message Text OR I AIS SR a ras
+20: Sender's Reference
+BA260129~-4240
+235: Bank Operation Code
+CRED
+S2A: Val Dte/Curr/Interbnk Settld Amt
+Date ? 29 January'2026
+Currency > EUR (EURO) |
+Amount : Tat #13215, 43#
+SOK: Ordering Customer-Name & Address
+41240020002140975 Be on
+1/LLC SARA TRADE RESTO}
+2/5 MICRODISTR., 42, 67 q
+3/KG/BISHKEK AUG Rey tees
+6/KG/TXID/02908202510171 ve dead le
+S7A: Account With Institution — EI, BIC
+: UBSWCHZH80A | x
+UBS SWITZERLAND AG i
+- HEAD OFFICE : | '
+ZURICH CH ; ,
+59: Beneficiary Customer—Name):§ Addr @erctsain
+: /CH440024724710294360R NAL Aan i
+WATERJET SYSTEMS INTERNATIO i Si = 28
+SWITZERLAND, VIA CAMPAGNA\ - ,CENTRO 79 -O- 5.
+NORD SUD, 6934 BIOGGIO. | | f SuR TOIT
+70: Remittance Information We AA vaetial
+PAYMENT FOR O-RINGS ACC.TO: CNTR NO.
+WSI12 DD 12.11.25 AND INVOICE) NO.11 é
+034 DD 12.11.25 FEU i
+71A: Details of Charges vit i 1g
+OUR Sith ar oe we eee a ee Fe
+woet nnn nnn =o ---- === ----=- Message Trailer ----
+{CHK:ADO9AF8FCO5D} Ragen sas
+PKI Signature: MAC-Equivalent | AAR
+Hye |
+pray ea) sess aT > eee
+MyM aifaes yee Se |
+7 Ih Pt z

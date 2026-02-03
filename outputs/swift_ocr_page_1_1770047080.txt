@@ -1,0 +1,66 @@
+¥ epmttpinet> | aa eny-9957-000002 | eee
+02/02/26-18:45:49_ Brincsrhennyss ao ital eon dotins _eaenie
+“EinetePrty>NORue/InseeP rey? |||)
+See i I ist} $4 eM | :
+</Svebvl> HEAR MM bell
+</PmtTpinft> We
+SECC IMAG cey=*cN¥">152250 00</IntrBkSeeimAnt>
+<IntrBkStt lmDt>2026-02-03</Intr!
+<InstdAmt Ccy="CNY">152280,00</Inatdamt>
+<ChrgBr>DEBT</ChrgBr> i
+<InstgAgt> i att
+<FinInstnId> i
+<BICFID>BAKAKG22</BICEI> |
+</FinInstnid>
+</InstgAgt>
+<InstdAat>
+<FinInstnid>
+<BICFI>SPDBCNSH</BICFI>
+</FPinInstnid>
+</InstdAgt>
+<Dbtr>
+<Nm>LLC "TEZKADAM"</Nm>
+<PstlAdr>
+<StrtNm>AYNI</StrtNm>
+<BldgNb>201</BldgNb>
+<Room>43</Room>
+<PstCd>720047</PstCd>
+<TwnNm>BISHKEK</TwnNm>
+<Ctry>KG</Ctry>
+</PstlAdr>
+<Id> p
+<OrgId> ;
+<Othr>
+<Id>01604202510290</Id>
+<SchmeNm>
+z <Cd>TXID</Cd>
+2 </SchmeNm>
+<3 </Othr>
+bs </OrgId> :
+r: </Id> ;
+= </Dbtr> : x :
+s <Dbt rAcct> os
+2 <Id>
+<Othr> \ =
+z <Id>1240020001962638</Id> os
+$ </Othr> S55
+= </Id> zs ;
+Z </DbtrAcct> nt BAKAM BAP fn 0s 4.
+f <DbtrAgt> & > @BAKAI BANK® ‘ 3
+4 <FinInstnId> . ‘
+i <BICFI>BAKAKG22</BICFI> * 02-02 26) 27 5
+</FinInstnid> s
+</DbtrAgt> cnn aan aon 2
+<FinInstnId>
+<BICFI>TZBKCNBTXXX</BICFI> m=
+</FinInstnid> biti eleaas :
+</CdtrAgt> i) i
+<Cdtr> mee
+<Nm>HANGZHOU GFF IMPORT AND) EXPORT CO., L@D</Nm>
+<Pstladr> ei eimai! he \ ic 7
+<StrtNm>EUROPE CENTER ia EFC ,CANGQIAN, YURANG</StrtNm>
+<BldgNb>T9</BldgNb> % "
+<Room>RM 901-01</Room> mi -.
+<TwnNm>HANGZHOU, 2HE. ‘ANG</TwnNm>
+<Ctry>CN</Ctry> — all ;
+lg 1

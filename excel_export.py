@@ -127,21 +127,17 @@ def _parse_swift_from_description(description: str) -> float:
 
 def _build_conversion_rows(conv_ops: List[Tuple]) -> List[List[object]]:
     """
-    На входе: список операций типа 'Конвертация'
-        (id, operation_type, currency, amount, description, timestamp)
-        Список должен быть отсортирован от старых к новым.
+    На входе: операции 'Конвертация'
+      (id, operation_type, currency, amount, description, timestamp)
 
-    На выходе: строки для Excel (БЕЗ "Банк" колонкой):
-        [№, Дата,
-         Валюта (нал), Сумма (нал),
-         Валюта платежа, Сумма платежа,
-         Курс клиента]
-    Примечание:
-      description (банк/пояснение) мы НЕ выводим в колонку,
-      а добавим как комментарий к "Сумма платежа".
+    В БД конвертация должна храниться ДВУМЯ строками:
+      +amount  = валюта ОТКУПА (что купили)
+      -amount  = валюта ОПЛАТЫ (чем заплатили)
+
+    На выходе строки Excel:
+      [Дата, Сумма откупа, Валюта откупа, Курс клиента, Сколько заплатили, Валюта оплаты]
     """
     rows: List[List[object]] = []
-    idx = 1
     i = 0
     n = len(conv_ops)
 
@@ -150,28 +146,28 @@ def _build_conversion_rows(conv_ops: List[Tuple]) -> List[List[object]]:
             op1 = conv_ops[i]
             op2 = conv_ops[i + 1]
 
-            # Определяем списание и зачисление
-            if op1[3] < 0:
-                from_op, to_op = op1, op2
-            elif op2[3] < 0:
-                from_op, to_op = op2, op1
+            # buy = плюс, pay = минус
+            if op1[3] > 0 and op2[3] < 0:
+                buy_op, pay_op = op1, op2
+            elif op2[3] > 0 and op1[3] < 0:
+                buy_op, pay_op = op2, op1
             else:
-                from_op, to_op = op1, op2
+                # если пара "сломана" — попробуем как есть
+                buy_op, pay_op = op1, op2
 
-            dt = parse_timestamp(from_op[5] or to_op[5])
+            dt = parse_timestamp(buy_op[5] or pay_op[5])
             date_str = dt.strftime("%d.%m.%Y")
 
-            from_curr = from_op[2]
-            to_curr = to_op[2]
-            from_amt = abs(from_op[3])
-            to_amt = abs(to_op[3]) if to_op[3] != 0 else 0
+            buy_curr = buy_op[2]
+            buy_amt = abs(buy_op[3])
 
-            rate = round(from_amt / to_amt, 6) if to_amt else None
+            pay_curr = pay_op[2]
+            pay_amt = abs(pay_op[3])
 
-            # Важно: description не кладём в строку (пойдёт в comment)
-            rows.append([idx, date_str, from_curr, from_amt, to_curr, to_amt, rate])
+            rate = round(pay_amt / buy_amt, 6) if buy_amt else None
 
-            idx += 1
+            rows.append([date_str, buy_amt, buy_curr, rate, pay_amt, pay_curr])
+
             i += 2
         else:
             # Одинокая конвертация (на всякий случай)
@@ -179,19 +175,11 @@ def _build_conversion_rows(conv_ops: List[Tuple]) -> List[List[object]]:
             dt = parse_timestamp(op[5])
             date_str = dt.strftime("%d.%m.%Y")
 
-            if op[3] < 0:
-                from_curr = op[2]
-                from_amt = abs(op[3])
-                to_curr = ""
-                to_amt = ""
+            if op[3] > 0:
+                rows.append([date_str, abs(op[3]), op[2], None, "", ""])
             else:
-                from_curr = ""
-                from_amt = ""
-                to_curr = op[2]
-                to_amt = abs(op[3])
+                rows.append([date_str, "", "", None, abs(op[3]), op[2]])
 
-            rows.append([idx, date_str, from_curr, from_amt, to_curr, to_amt, None])
-            idx += 1
             i += 1
 
     return rows
@@ -372,10 +360,15 @@ def _write_operations_tables_for_chat(ws, operations: list, styles: dict, chat_i
 
         if op_type == "Конвертация":
             headers = [
-                "№", "Дата", "Валюта (нал)", "Сумма (нал)",
-                "Валюта платежа", "Сумма платежа", "Курс клиента",
+                "Дата",
+                "Сумма откупа",
+                "Валюта откупа",
+                "Курс клиента",
+                "Сумма оплаты",
+                "Валюта оплаты",
             ]
             data_rows = _build_conversion_rows(ops_by_type[op_type])
+
 
         elif op_type == "Оплата ПП":
             # ✅ убрали "Описание" колонкой
@@ -412,11 +405,12 @@ def _write_operations_tables_for_chat(ws, operations: list, styles: dict, chat_i
                 date_str = _date_key_from_timestamp(timestamp)
                 data_rows.append([idx, date_str, currency, amount])
                 idx += 1
+        date_col_index = 0 if op_type == "Конвертация" else 1
 
         prepared_tables.append({
             "op_type": op_type,
             "headers": headers,
-            "rows_by_date": _group_rows_by_date(data_rows, date_col_index=1),
+            "rows_by_date": _group_rows_by_date(data_rows, date_col_index=date_col_index),
             "cols_count": len(headers),
         })
 
@@ -475,6 +469,11 @@ def _write_operations_tables_for_chat(ws, operations: list, styles: dict, chat_i
                 ws.column_dimensions[col_letter].width = 13
             elif header in ("Курс", "Курс клиента"):
                 ws.column_dimensions[col_letter].width = 12
+            elif header in ("Сумма откупа", "Сумма оплаты"):
+                ws.column_dimensions[col_letter].width = 15
+            elif header in ("Валюта откупа", "Валюта оплаты"):
+                ws.column_dimensions[col_letter].width = 12
+
             else:
                 ws.column_dimensions[col_letter].width = 15
 
@@ -503,8 +502,9 @@ def _write_operations_tables_for_chat(ws, operations: list, styles: dict, chat_i
 
                     # Форматы чисел
                     if header_text in (
-                        "Сумма", "Сумма (нал)", "Сумма платежа",
-                        "Сумма (USD)", "SWIFT USD", "Комиссия 1%"
+                        "Сумма", "Сумма (нал)", "Сумма платежа", "Сумма (USD)",
+                        "SWIFT USD", "Комиссия 1%",
+                        "Сумма откупа", "Сумма оплаты",
                     ):
                         if isinstance(value, (int, float)):
                             cell.number_format = "#,##0.00"
@@ -512,17 +512,16 @@ def _write_operations_tables_for_chat(ws, operations: list, styles: dict, chat_i
                         if isinstance(value, (int, float)):
                             cell.number_format = "#,##0.000000"
 
+
                     # ✅ ставим комментарий в "ключевую сумму" колонку
                     # Для конвертации логичнее комментарий на "Сумма платежа"
                     if descr:
-                        if op_type == "Конвертация" and header_text == "Сумма платежа":
+                        if op_type == "Конвертация" and header_text == "Сумма оплаты":
+                            _set_comment(cell, descr)
+                        elif op_type == "Запрос банку" and header_text == "Сумма (USD)":
                             _set_comment(cell, descr)
                         elif op_type != "Конвертация" and header_text == "Сумма":
                             _set_comment(cell, descr)
-                        # Для "Запрос банку" ключевая сумма — "Сумма (USD)"
-                        elif op_type == "Запрос банку" and header_text == "Сумма (USD)":
-                            _set_comment(cell, descr)
-
                 # Раскраска строк
                 if op_type == "Конвертация":
                     for off in range(cols_count):

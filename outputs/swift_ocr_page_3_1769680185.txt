@@ -1,0 +1,29 @@
+<Ctry>CN</Ctry>
+27/01/26-18:09:34 PrinterBAKAY-6871-000001 3
+</PstlAdr>
+</Cdtr>
+<Cdt rAcct>
+<Id>
+<Othr>
+<Id>372758354820</Id>
+</Othr>
+</Id>
+</CdtrAcct>
+<Purp>
+<Prtry>GODX</Prtry>
+</Purp>
+<RetInf{>
+<Ustrd>PAYMENT FOR HYDRAULIC PRESS ACC TO.CONTRACT NO. PTM15 DD
+15.08.2025 AND INVOICE NO.TL20250818T DD 18.08.2025</Ustrd>
+</RmtIn£f>
+</CdtTrfTxInf>
+</FIToFICstmrCdtTrf>
+</Document>
+Oe \98
+| ! er) toes
+a bo Be
+}
+va} ’ m4
+“ |g on
+, ‘4 ‘
+tire a

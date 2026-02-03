@@ -1,0 +1,70 @@
+ji —— Se
+t <PmtTpInf> }
+02/02/26-18: 46:50 PrinterBAKAY-8959-000001 2
+Fn i
+<instxPrty>NORM</iInstrPrty>
+<SvcLvl>
+<Cd>G001</Cd> i
+</SvcLyvl>
+</PmtTpInt>
+<InteBkSttilmamt Coy="CNY">81600,00</IntrBksttlmAmt>
+<InteBkStt LmDt>2026-02-03</IntrBkSttlmbt>
+<Instadamt Coy="CNY">81600,00</InstdAmt>
+<ChrgBr>DEBT</ChrgBr>
+<InstgAgt> )
+<FinInstnid> {
+<BICFI>BAKAKG22¢/BICFI>
+</Pintnstnid>
+</InstgAgt>
+<InstdAgt>
+<FinInstnid>
+<BICFI>SPDBCNSH</BICFI>
+</FPinInstnid>
+</InstdAgt>
+<Dbtr>
+<Nm>LLC "TEZKADAM"</Nm>
+<PstlAdr> t
+<StrtNm>AYNI</StrtNm>
+<BldgNb>201</BldgNb>
+<Room>43</Room>
+<PstCd>720047</PstCd>
+<TwnNm>BISHKEK</TwnNm>
+<Ctry>KG</Ctry>
+</PstlAdr>
+<Id>
+<Orgid>
+<Othr>
+<Id>01604202510290</Id>
+<SchmeNm>
+<Cd>TXID</Cd>: > | 5
+</SchmeNm>
+</Othr>
+</OrgId>
+</Id>
+</Dbtr> .
+= <DbtrAcct>
+: <Id>
+oe <Othr> A
+x <Id>1240020001962638</Id>
+= </Othr> | ;
+2 </Id> H '
+ai </DbtrAcct> }
+eS <Dbt rAgt> | ;
+ie <FinInstnid> 55 F
+pA <BICFI>BAKAKG22</BICFI> =< ‘
+SH </FinInstnid> j ® Seren: eam
+2 </DbtrAgt> ! i Oe 2 ie
+SG <CdtrAgt> (ct ed i Jens |
+os <FinInstnid> MU Redes Fe Ve (oR a cn
+: <BICFI>BKCHCNBJ44K</BICFI> sd] mmm |
+a </FinInstnid> + A e jelly c | HHoIsANgResOICT | |
+</CdtrAgt> WIR ee
+% <Cdtr> Wa 1
+4 <Nm>JIANGMEN FOREIGN TRADE) GROUP CO., LTD “
+zs <PstlAdr> ey wer f
+3 <StrtNm>FOREIGN TRADE BUIUDING i cS
+: <BldgNb>82-1</BldgNb>
+i <TwnNm>529000, JIANGMEN; GUANG
+<Ctry>CN</Ctry> |
+F </PstlAdr> ; {
+__ \

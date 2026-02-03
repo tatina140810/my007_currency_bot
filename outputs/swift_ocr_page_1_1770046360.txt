@@ -1,0 +1,64 @@
+y 02/02/26-18:58:14. OBStayy Sao Te PRO ARR ARG: ox = =
+Eee ees |
+Wwaewerooaeasaoaoao-o= Instance Typd and Transmission --------o--—-_
+Notification (Transmission) of sian sent to SWIFTNet (ACK)
+Network Delivery Status : Ne’ Wo ® Ac
+Priority/Delivery : Normal \
+Message Input Reference 1: 1858 60202bakakg22_generic001099000000749:
+TSS onto eee eenenncennmnwn= MeSSAge® H@ader <“---.4....- 2 2 lls
+MX Input : pacs.008.001.08 CBPRP1us-pacs .008.001.08_FiToriCustomercr
+editTransfer \ _
+Requestor DN : OUSXxx, Oebakakg22; omswi ft
+Responder DN +} oU=Xxx, omsoladest) omsawi ft
+User Reference: BA260202-1090798
+VETR : 61d38da2-a664~—4cf9-ad09-965f£93be315
+Service Name : swift. finplus
+Non-repudiation Indicator: False
+SWIFT Reference: swi01001-2026-02-02T12:58:05.53117.1631931Z
+SWIFT Request Reference: SNL51478-2026-02-02T12:58:05.2894057.220596z
+CBT Reference: 6688f8f6-0033-41f1-9aa4-11b40c769bcd
+Store-and-forward Input Time: 0102:2026-02-027T12:58:05
+Signing DN s cn=bakakg, o=bakakg22,o0=swift
+TUTE nnmnnn——— Message Text ---------=--- <3
+SAppHdr xmins="urn:iso:std:iso:20022:tech:xsd:head.001.001.02">
+<Fr>
+<FIId>
+<FininstnId>
+<BICFI>BAKAKG22</BICFI> |
+</FinInstnId>
+</FIId> :
+</Fr> >
+<To> f
+<FIId> : Ka RAK
+<FinInstnId> ? {ORG <a aN
+<BICFI>SOLADEST</BICFI> - @os
+= </FinInstnId> vt “yy 2008 25
+= </FIIda> '
+= </To> ' a00% 07
+e <BizMsgI dr>BA260202-1090798</BizMsgidr> Mt O18 oun $8:
+> <MsgDefIdr>pacs.008.001.08</MsgDefIdr> e Seuss
+: <BizSvc>swift.cbprplus.03</BizSvc>..
+= <CreDt>2026-02-02T18:30:14.0420713+06:00</CreDt>
+5 <PssblDplct>false</PssblDplct>: {
+3 <Prty>NORM</Prty> :
+4 <Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.008.001.08">
+4 <FIToFICstmrCdtTrf> Rises
+? <GrpHdr>
+: <MsgId>BA260202-1090798</MsgId>|
+| <CreDtTm>2026-02-02T18:30:14,0420713+06:00</CreDtTm>
+<NbOfTxs>1</NbOfTxs> ; iil
+<SttlmInf> mata
+<Stt lmMtd>INDA</SttlmMtd> || ©
+</SttlmInf> 4 FH ‘4 :
+</GrpHdr> he iid Byal
+<CdtTr£TxIn£> WOE |e 7
+<PmtId> ete [2 il a o
+<Instr1d>BA260202-1090298</Instxid> a
+<EndToEndId>NOTPROVIDED</Endtomndid> =
+</PmtId> —_  : =
+<Pmt TpInf> ie 1
+<Svcbyl> at
+__ </Svebvl> ia
+</PmtTpint> 7
+of
+——— te

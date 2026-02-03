@@ -1,0 +1,65 @@
+. i)
+_ 02/02/26-18:45349 eruncer A feos a uy
+- “Notification (tranemission) of Ofdginal sent to SWIFTNet (ACK) == i
+Network Delivery status Normal ape r ;
+Soe eh ee renenee + 1645 60202bakakg22_generic001099000000741 \
+ween e ne ee ce neboncueeeenese= Mepsage Header =-+--2----+------------—— }
+MX Input : pacs.008.001.08 COERPAUS*paes <008.001: CO Me i Tor LGlst meee |
+fer | | 1
+paaenaeni es DN + ou=xXxx, o=bakakg22; omswift |
+Responder DN ¢ OU=XXX, o=spdbensh, omswift |
+User Reference: BA260202-1090790 |
+VETR : 5ebe001d-c2a7-45a5=ba8b-1067711¢7166
+Service Name : swift.finplus
+Non-repudiation Indicator: False
+SWIFT Reference: swi01001-2026-02-02T12:45:41.54059.21478492
+SWIFT Request Reference: SNL51478-2026-02-02T12:45:40.2894059.2198247
+CBT Reference: 528301be-002c-41£1-9aa4-8097d8744126
+Store-and-forward Input Time: 0102:2026-02-02T12:45:41
+Signing DN : cn=bakakg, o=bakakg22, o=swift
+poe ------ Message Text. -<<-- 9999" 5-2 ene oe
+<AppHdr xmlns="urn:iso:std:iso:20022:tech:xsd:head.001.001.02%>
+<Fr>
+<FIId>
+<Fininstnid> :
+<BICFI>BAKAKG22</BICFI>
+</FinInstnid>
+</FIId> i
+</Fr> 5
+<To> ;
+<FIId>
+<FiniInstnIid>
+<BICFI>SPDBCNSH</BICFI>. |
+</FinInstnid>
+</FIId>
+</To> ;
+a <BizMsgIdr>BA260202-1090790</BizMsgIdr>
+a= <MsgDefIdr>pacs.008.001.08</MsgDefIdr>
+=, <BizSvc>swift.cbprplus .03</BizSvc>
+mee <CreDt>2026-02-02T17:28:56.5350401+06:00</CreDt>
+a <PssblDplct>false</PssblDplct>
+ss <Prty>NORM</Prty> ;
+ae </AppHdr> tus
+=] <Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.008.001.08">
+| <FIToFICstmrCdtTrf> fay
+a <GrpHdr> i
+mai <MsgId>BA260202-1090790</MsgId>
+= <CreDtTm>2026-02-02T17:28:56.5350401+06:00</CrepttTn
+5 <NbOf£Txs>1</NbOfTxs> cp Pal = |
+S <SttlmInf> | EAKAR SUNG
+| <SttlmMt d>INDA</stt1mMtd> 1 (Goise swaca fe
+4 <SttlmAcct> Me lorem
+<Id> Wise 1} Maes
+<td> 990101541 00000; 3am/tda { mrnusrntepstog7
+</Id> ‘a ee
+</SttlmAcct> a it)))
+</SttlmInf> n
+</GrpHdr> — ,
+<CdtTrfTxInf> ia
+<PmtId> —- |
+<EndToEndId>NOTPROVID \
+SUETR>Sebe001d~¢
+</PmtId>
+a 4 i
+o "
+PS Sd — ;

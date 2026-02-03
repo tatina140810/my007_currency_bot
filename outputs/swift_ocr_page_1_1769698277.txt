@@ -1,0 +1,62 @@
+i ea
+29/01/26-19: 45:37) PrinterBAKAY-7958-000001 1
+aa ee nanan a= Siveanve ldyvalana Transmission —--------------
+Notification (Transmission) of| Original sent to SWIFT (ACK)
+Network Delivery Status ¢ Network! Ack
+Priority/Delivery : Normal
+Message Input Reference } 1945 26012 9BAKAKG22AXXX6648661369
+nce ence Leese Message HEAdSr q<Ho~HASA<-““ 8 — ne
+Swift Input : FIN 103 Single Customer Credt Transfer
+Sender : BAKAKG22XXX
+BAKAI BANK OJSC
+BISHKEK KG
+Receiver : SPDBCNSHXXX
+SHANGHAI PUDONG DEVELOPMENT BANK
+HEAD OFFICE
+SHANGHAI CN
+UETR : 80e8bdca-fdl4-41£0-9aa4-e39b0F4Ace559
+~ua--------------+-------=- Message Text - ss
+20: Sender's Reference
+BA260129-4213 |
+23B: Bank Operation Code
+CRED
+32A: Val Dte/Curr/Interbnk Settld Amt
+Date : 30 January, 2026
+Currency : CNY (YUAN RENMINBI)
+Amount : #17500, 0O#
+50F: Ordering Customer - ID CH
+/1240020001962638 |
+1/LLC TEZKADAM
+2/AYNI STR., 201, 43 H
+3/KG/BISHKEK : \
+6/KG/TXID/01604202510290
+53B: Sender's Correspondent -Location
+/99010154100000133
+57A: Account With Institution — FI BIC
+ABOCCNBJ100
+AGRICULTURAL BANK OF CHINA,, THE
+JIANGSU BRANCH :
+NANJING CN Fee
+59: Beneficiary Customer-Name & RKddr - Ci ERR Ee
+/10448114040000134 ; Ont
+JIANGSU ZENGTUO COMPOSITE MATERIALS 18 98
+: TECHNOLOGY CO.,LID. aan SN - \_9 oh
+7 CHINA, HEPU VILLAGE, TIANLOU TOWN, ane
+LIANYUNGANG CITY, JIANGSU PROVINCE wane ' ag8 1010 58.
+70: Remittance Information 22, jx BE a
+PAYMENT FOR CARBON FIBER ACC.f0) CNT :
+R NO.0212/25 DD 02.12.25 AND ENVOIC
+E NO,2TP12512001 DD 23.12.25 | |
+71A: Details of Charges ' i ait bd ane!
+| OUR ne a a ae
+72: Sender to Receiver Informatio ‘A eee | re
+/GODK/ ig | ae ae
+Sa ec pe etree lal actions oe tn Message Trailer SaSeaRaSee=eR===—e——— eo
+{CHK:202237F2D390} i ania
+Bere} || ||
+PKI Signature: MAC-Equivalent (G)\jie 7"
+a} J
+f' :
+(a - 5
+i he
+¥.
