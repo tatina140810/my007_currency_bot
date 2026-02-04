@@ -7,6 +7,7 @@ import io
 import time
 import asyncio
 import logging
+import tempfile
 from datetime import datetime, date, timezone
 from zoneinfo import ZoneInfo
 from collections import defaultdict
@@ -37,10 +38,6 @@ from auto_reply_bot import (
     TEAM_MEMBER_IDS,
     last_auto_reply_dates,
 )
-
-# ✅ ИМПОРТ УЛУЧШЕННЫХ МОДУЛЕЙ
-from ocr_advanced import run_ocr_from_image_bytes
-from swift_parser_improved import parse_swift_text
 
 # ============================================================
 # КОНФИГУРАЦИЯ
@@ -118,12 +115,6 @@ CHAT_ALIASES = {
     "Группа Антилопа": ["антилопа", "antilope"],
     "ДЕЛЬТА": ["дельта", "delta"],
 }
-SWIFT_KEYWORDS = [
-    "swift", "pacs", "cbpr", "fitofic", "mx",
-    "uetr", "bic", "iso 20022",
-    "payment", "instd", "intrbk",
-]
-
 
 # ============================================================
 # ЛОГИРОВАНИЕ
@@ -189,44 +180,6 @@ def extract_group_tag(text: str) -> tuple[str | None, str]:
     group = m.group(1).strip()
     clean_text = m.group(2).strip()
     return group, clean_text
-
-def extract_swift_xml_fields(text: str) -> dict:
-    result = {}
-
-    def find(tag):
-        m = re.search(fr"<{tag}>(.*?)</{tag}>", text, re.S | re.I)
-        return m.group(1).strip() if m else None
-
-    nm = find("Nm")
-    if nm:
-        result["payer"] = nm
-
-    uetr = find("UETR")
-    if uetr:
-        result["uetr"] = uetr
-
-    ustrd = find("Ustrd")
-    if ustrd:
-        result["purpose"] = ustrd
-
-    m = re.search(
-        r'<IntrBkSttlmAmt[^>]*Ccy="([A-Z]{3})"[^>]*>([\d.,]+)</IntrBkSttlmAmt>',
-        text
-    )
-    if m:
-        result["currency"] = m.group(1)
-        result["amount"] = m.group(2)
-
-    return result
-
-
-def is_swift_ready(acc: dict) -> bool:
-    return (
-        acc.get("amount") and
-        acc.get("currency") and
-        acc.get("uetr")
-    )
-
 
 def normalize_group_name(name: str) -> str:
     """
@@ -499,52 +452,48 @@ async def queue_operation(
 # ============================================================
 
 def parse_income_notification(text: str):
-    """
-    Парсит уведомление о поступлении.
-    """
     if not text:
         return None
 
+    text = _norm_ws(text)
     low = text.lower()
 
-    # Ключевые слова поступления
-    if not any(kw in low for kw in (
-        "поступил", "поступили", "поступление",
-        "зачислен", "зачислены", "зачисление",
-    )):
+    # более мягкая проверка "поступ/зачисл"
+    if not re.search(r"\b(поступ\w*|зачисл\w*|получен\w*)\b", low):
         return None
 
-    m = re.search(
-        r"(?P<amount>\d[\d\s]*(?:[.,]\d{1,2})?)\s*"
-        r"(?P<curr>руб(?:\.|лей)?|сом(?:ов)?|kgs|usdt|usd|eur|rub|kzt|cny|юань?|долл?\.?|тез(?:ер)?|aed|дирх(?:ам)?)",
-        text,
+    money_re = re.compile(
+        r"(?P<amount>\d[\d\s\u00A0\u202F]*(?:[.,]\d{1,2})?)\s*"
+        r"(?P<curr>"
+        r"₽|r\.?|руб(?:\.|ля|лей)?|rub|RUB|"
+        r"сом(?:\.|ов)?|kgs|"
+        r"usdt|usd|\$|"
+        r"eur|€|"
+        r"kzt|"
+        r"cny|юан(?:ь|я|ей)?|¥|"
+        r"aed|дирх(?:ам|ама|амов)?"
+        r")\b",
         re.IGNORECASE,
     )
 
+    m = money_re.search(text)
     if not m:
+        logger.info("[INCOME_PARSE] no money match")
         return None
 
     amount_str = m.group("amount")
+    curr_raw = m.group("curr")
 
     try:
-        if '.' not in amount_str and ',' not in amount_str:
-            amount = float(amount_str.replace(' ', '').replace('\u00A0', ''))
-        else:
-            amount = parse_human_number(amount_str)
-    except ValueError:
-        logger.warning(f"Не удалось распарсить сумму: '{amount_str}'")
+        amount = parse_human_number(amount_str)
+    except Exception:
+        logger.exception(f"[INCOME_PARSE] bad amount: {amount_str!r}")
         return None
 
-    raw_curr = m.group("curr").lower()
-
-    # 🔥 КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ
-    if raw_curr in ("usdt", "тез", "тезер"):
-        currency = "USDT"
-    else:
-        currency = normalize_currency(raw_curr)
+    currency = normalize_currency(curr_raw)
 
     return {
-        "amount": amount,
+        "amount": float(amount),
         "currency": currency,
         "description": text.strip(),
     }
@@ -763,319 +712,43 @@ def compute_conversion_to_amount(amount: float, rate: float, from_curr: str, to_
     
     return amount * rate
 
-
-# ============================================================
-# SWIFT ОБРАБОТКА
-# ============================================================
-
-def quick_swift_check(text: str) -> bool:
-    """Быстрая проверка: похоже ли на SWIFT/MX"""
-    if not text:
-        return False
-
-    t = text.lower()
-
-    if "<" in t and ">" in t:
-        keys = (
-            "pacs.008", "cbprplus", "fitoficstmr", "bizmsgidr", "msgdefidr",
-            "bicfi", "uetr", "intrbksttlmamt", "instdamt", "chrgbr",
-            "printer", "swift", "swiftnet", "document xmlns", "<apphdr", "<document"
-        )
-        return any(k in t for k in keys)
-
-    keys2 = ("swiftnet", "uetr", "bicfi", "pacs.008", "cbprplus", "msgdefidr")
-    return any(k in t for k in keys2)
-
-
-_SWIFT_TAG_RE = re.compile(r"<\s*[\w:.-]+(?:\s+[^>]*)?>|</\s*[\w:.-]+\s*>")
-
-def looks_like_document(text: str) -> bool:
-    lines = text.splitlines()
-    return (
-        len(lines) >= 20 and
-        sum(1 for l in lines if '<' in l and '>' in l) >= 3
-    )
-
-
-def looks_like_swift(text: str) -> bool:
-    t = text.lower()
-    hits = sum(1 for k in SWIFT_KEYWORDS if k in t)
-    return hits >= 2
-
-
-
-def has_swift_xml_tags(text: str) -> bool:
-    """Проверяет наличие SWIFT XML тегов"""
-    if not text:
-        return False
-    
-    if "<" in text and ">" in text and _SWIFT_TAG_RE.search(text):
-        return True
-    
-    markers = ("UETR", "Dbtr", "Cdtr", "Ccy", "Amt", "IntrBkSttlmAmt", "MsgId")
-    return any(m in text for m in markers)
-
-
-async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    message = update.effective_message
-    if not message or not message.photo:
-        return
-
-    photo = message.photo[-1]
-    file = await photo.get_file()
-    image_bytes = bytes(await file.download_as_bytearray())
-
-    # ⛔ быстрый фильтр ДО OCR
-    try:
-        img = Image.open(io.BytesIO(image_bytes))
-    except Exception:
-        return
-
-    if not looks_like_document_image(img):
-        logger.info("📷 Фото пропущено: не похоже на документ")
-        return
-
-    # ⚠️ дальше ТОЛЬКО документы
-    group_id = message.media_group_id
-
-    if not group_id:
-        await _process_swift_pages([image_bytes], message)
-        return
-
-    if group_id not in media_groups:
-        media_groups[group_id] = []
-    media_groups[group_id].append(image_bytes)
-
-    old_task = media_group_tasks.get(group_id)
-    if old_task and not old_task.done():
-        old_task.cancel()
-
-    async def delayed():
-        try:
-            await asyncio.sleep(MEDIA_GROUP_WAIT)
-        except asyncio.CancelledError:
-            return
-
-        pages = media_groups.pop(group_id, [])
-        media_group_tasks.pop(group_id, None)
-
-        if pages:
-            await _process_swift_pages(pages, message)
-
-    media_group_tasks[group_id] = asyncio.create_task(delayed())
-
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
-"""
-ГОТОВЫЙ КОД ДЛЯ ЗАМЕНЫ В bot.py
-
-ИНСТРУКЦИЯ:
-1. Откройте ваш bot.py
-2. Найдите функцию _process_swift_pages (примерно строка 800-900)
-3. Удалите всю старую функцию
-4. Вставьте КОД НИЖЕ (всё от async def до конца функции)
-5. Сохраните и перезапустите бота
-"""
-
-# ============================================================
-# КОПИРУЙТЕ ОТСЮДА ↓↓↓
-# ============================================================
-
-async def _process_swift_pages(pages_bytes: list[bytes], message):
-    """
-    УЛУЧШЕННАЯ обработка многостраничных SWIFT документов
-    
-    Изменения:
-    - OCR всех страниц сначала
-    - Объединение текста
-    - Парсинг ОДИН РАЗ всего документа
-    """
-    
-    start_time = time.time()
-    logger.info(f"SWIFT: страниц в пачке = {len(pages_bytes)}")
-    
-    os.makedirs("outputs", exist_ok=True)
-    
-    # ============================================================
-    # ШАГ 1: OCR ВСЕХ СТРАНИЦ
-    # ============================================================
-    
-    all_ocr_texts = []
-    
-    for idx, img_bytes in enumerate(pages_bytes, 1):
-        page_start = time.time()
-        size = len(img_bytes)
-        
-        # Быстрая фильтрация
-        if size < 30_000:
-            logger.info(f"  Страница {idx}: пропущена (слишком маленькая)")
-            continue
-        
-        logger.info(f"  Страница {idx}: запуск OCR ({size:,} байт)")
-        
-        try:
-            text = await asyncio.to_thread(
-                run_ocr_from_image_bytes,
-                img_bytes,
-                use_easyocr=False
-            )
-        except Exception:
-            logger.exception(f"  Страница {idx}: OCR ошибка")
-            continue
-        
-        # Сохраняем OCR текст для отладки
-        fname = f"outputs/swift_ocr_page_{idx}_{int(time.time())}.txt"
-        with open(fname, "w", encoding="utf-8") as f:
-            f.write(text)
-        
-        # Добавляем в список
-        all_ocr_texts.append(text)
-        
-        logger.info(
-            f"  Страница {idx}: OCR завершён "
-            f"({len(text)} символов, {time.time()-page_start:.2f}с)"
-        )
-        
-        # Логируем содержимое (как раньше)
-        log_ocr_debug(text, idx)
-    
-    # Проверка: есть ли текст?
-    if not all_ocr_texts:
-        logger.warning("SWIFT: нет текста после OCR")
-        return
-    
-    # ============================================================
-    # ШАГ 2: ОБЪЕДИНЯЕМ ВСЕ СТРАНИЦЫ
-    # ============================================================
-    
-    # Объединяем через двойной перенос строки
-    combined_text = "\n\n".join(all_ocr_texts)
-    
-    logger.info(f"📄 Объединено страниц: {len(all_ocr_texts)}")
-    logger.info(f"📄 Общий размер текста: {len(combined_text)} символов")
-    
-    # Сохраняем объединенный текст
-    combined_fname = f"outputs/swift_combined_{int(time.time())}.txt"
-    with open(combined_fname, "w", encoding="utf-8") as f:
-        f.write(combined_text)
-    logger.info(f"💾 Сохранён: {combined_fname}")
-    
-    # ============================================================
-    # ШАГ 3: ПАРСИМ ВЕСЬ ДОКУМЕНТ ОДИН РАЗ
-    # ============================================================
-    
-    logger.info("🔍 Запуск парсинга объединенного документа")
-    
-    parsed = parse_swift_text(combined_text, return_dict=True)
-    
-    if not parsed:
-        logger.warning("⚠️ Парсинг не дал результатов")
-        logger.info(f"SWIFT: данные не собраны (время {time.time() - start_time:.1f}с)")
-        return
-    
-    # Проверяем, есть ли хоть какие-то данные
-    filled_fields = sum(bool(parsed.get(key)) for key in [
-        'amount', 'currency', 'uetr', 'payer', 'receiver', 'payment_for'
-    ])
-    
-    logger.info(f"📊 Извлечено полей: {filled_fields}/6")
-    
-    if filled_fields == 0:
-        logger.warning("⚠️ Все поля пустые")
-        logger.info(f"SWIFT: данные не собраны (время {time.time() - start_time:.1f}с)")
-        return
-    
-    # ============================================================
-    # ШАГ 4: ФОРМАТИРУЕМ И ОТПРАВЛЯЕМ
-    # ============================================================
-    
-    # Получаем красиво отформатированное сообщение
-    formatted_msg = parse_swift_text(combined_text)  # без return_dict
-    
-    if formatted_msg:
-        await message.reply_text(formatted_msg, parse_mode=None)
-        logger.info(f"✅ SWIFT обработан успешно за {time.time() - start_time:.1f}с")
-    else:
-        logger.warning(f"⚠️ Не удалось отформатировать сообщение")
-        logger.info(f"SWIFT: данные не собраны (время {time.time() - start_time:.1f}с)")
-
-
-def log_ocr_debug(text: str, page: int):
-    """
-    Логирование OCR для отладки
-    (эта функция уже есть в вашем bot.py, оставляем как есть)
-    """
-    lines = text.splitlines()
-    
-    logger.info(f"🧾 OCR DEBUG | Страница {page}")
-    logger.info(f"Всего строк: {len(lines)}")
-    
-    # Первые строки
-    logger.info("📌 ПЕРВЫЕ 25 СТРОК OCR:")
-    for ln in lines[:25]:
-        logger.info(f"  {ln}")
-    
-    # Строки с цифрами
-    logger.info("🔢 СТРОКИ С ЦИФРАМИ:")
-    for ln in lines:
-        if any(ch.isdigit() for ch in ln):
-            logger.info(f"  {ln}")
-    
-    # Строки с валютами
-    logger.info("💱 СТРОКИ С ВАЛЮТАМИ:")
-    for ln in lines:
-        if any(x in ln.upper() for x in ("EUR", "USD", "CNY", "RUB", "KGS", "AED")):
-            logger.info(f"  {ln}")
-
-
-def format_swift_message(acc: dict) -> str:
-    lines = ["💳 SWIFT ПЛАТЁЖ"]
-
-    if acc.get("payer"):
-        lines.append(f"\n👤 Плательщик:\n{acc['payer']}")
-
-    if acc.get("amount") and acc.get("currency"):
-        lines.append(f"\n💰 Сумма:\n{acc['amount']} {acc['currency']}")
-
-    if acc.get("uetr"):
-        lines.append(f"\n🔗 UETR:\n{acc['uetr']}")
-
-    if acc.get("purpose"):
-        lines.append(f"\n📝 Назначение платежа:\n{acc['purpose']}")
-
-    return "\n".join(lines)
-
 # ============================================================
 # ОБРАБОТКА ТЕКСТА
 # ============================================================
+def _norm_ws(s: str) -> str:
+    if not s:
+        return ""
+    # неразрывные/тонкие пробелы -> обычные
+    return s.replace("\u00A0", " ").replace("\u202F", " ")
+
 
 def looks_like_bank_income(text: str) -> bool:
-    """Проверяет похоже ли сообщение на банковское поступление"""
-    t = (text or "").lower()
+    t = _norm_ws(text or "").lower().strip()
 
-    # ИСКЛЮЧАЕМ ручные операции
+    # исключаем ручные операции
     if t.startswith(("оплата", "взнос", "выдача", "фикс", "запрос")):
         return False
 
-    has_income_words = any(k in t for k in (
-        "поступил", "поступили", "поступление",
-        "зачислен", "зачислены", "зачисление",
+    # ловим поступ… / зачисл… даже с опечатками типа "поступлии"
+    income_words = bool(re.search(r"\b(поступ\w*|зачисл\w*|получен\w*)\b", t))
+
+    bank_markers = any(k in t for k in (
+        "перевод spfs", "перевод finline", "согл. п.п.", "п.п.",
+        "отпр.", "отпр ", "отправ", "ooo", "ооо", "osoo",
+        "mcrb", "sb", "mti", "vo", "rs", "р/с", "инн", "банк", "bank",
     ))
 
-    has_bank_markers = any(k in t for k in (
-        "перевод finline", "перевод spfs", "согл. п.п.",
-        "oplata", "оплата",
-        "sb", "mcrb", "vo", "inn", "р/с", "rsc", "rs",
-        "банк", "bank",
+    has_currency = bool(re.search(
+        r"(₽|\brub\b|\brub\.?\b|\brubль\w*\b|\brubлей\b|\brubля\b|"
+        r"\brub\b|\brub\.?\b|\brub(?:\.|ля|лей)?\b|"
+        r"\brub\b|\brub\.?\b|"
+        r"\brub\b|"
+        r"\brub\b|"
+        r"руб|₽|RUB|usd|\$|eur|€|сом|kgs|cny|¥|kzt|aed|usdt)",
+        t, re.IGNORECASE
     ))
 
-    has_currency = any(k in t for k in (
-        "руб", "rub", "usd", "eur", "сом", "kgs",
-        "cny", "kzt", "aed", "¥", "€", "$", "₽", "usdt"
-    ))
-
-    return (has_income_words and has_currency) or (has_bank_markers and has_currency)
+    return (income_words and has_currency) or (bank_markers and has_currency)
 
 def compute_fixed_payment_amount(buy_amount: float, rate: float) -> float:
     if rate <= 0:
@@ -1130,9 +803,11 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 5️⃣ АВТО-ПОСТУПЛЕНИЯ (БАНК)
     if looks_like_bank_income(clean_text):
+        logger.info(f"[AUTO_INCOME] matched: chat={chat.id}")
 
         income = parse_income_notification(clean_text)
         if not income:
+            logger.info("[AUTO_INCOME] parse_income_notification=None")
             return
 
         # Личка - группа обязательна
@@ -1159,6 +834,10 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             income["amount"],
             income["description"],
         )
+
+        logger.info(
+            f"[AUTO_INCOME] queued {income['amount']} {income['currency']} -> chat {target_chat_id}"
+        )
         return
 
     if staff:
@@ -1179,15 +858,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     desc,
                 )
             await message.reply_text("✅ Bulk платежи обработаны")
-            return
-
-    # =====================================================
-    # 3️⃣ SWIFT
-    # =====================================================
-    if staff and has_swift_xml_tags(clean_text):
-        swift_msg = parse_swift_text(clean_text)
-        if swift_msg:
-            await message.reply_text(swift_msg)
             return
 
     # =====================================================
@@ -1376,6 +1046,36 @@ async def show_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.callback_query.edit_message_text(text, parse_mode=None)
     else:
         await update.message.reply_text(text, parse_mode=None)
+
+async def cmd_balances(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(f"[ALLBAL] called chat={update.effective_chat.id} user={update.effective_user.id if update.effective_user else None}")
+
+    fd, path = tempfile.mkstemp(suffix=".xlsx")
+    os.close(fd)
+
+    try:
+        db.export_group_balances_to_excel(path)
+
+        filename = f"остатки_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.xlsx"
+        with open(path, "rb") as f:
+            await update.message.reply_document(
+                document=f,
+                filename=filename,
+                caption="Остатки по группам (Excel)"
+            )
+
+        logger.info(f"[ALLBAL] sent file {filename} size={os.path.getsize(path)}")
+
+    except Exception as e:
+        logger.exception("[ALLBAL] error")
+        await update.message.reply_text(f"❌ Ошибка /allbal: {e}")
+
+    finally:
+        try:
+            os.remove(path)
+        except Exception:
+            pass
+
 
 
 async def undo_last_operation(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1666,30 +1366,52 @@ async def export_operations(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Команда /help"""
     chat_name = get_chat_name(update)
-    help_text = f"""СПРАВКА
 
+    help_text = f"""📌 СПРАВКА
 Текущий чат: {chat_name}
 
-Команды:
-/bal - Показать баланс
-/his [дата] - История операций
-/del - Удалить операцию
-/ex - Экспорт в Excel
-/help - Эта справка
+━━━━━━━━━━━━━━━━━━
+✅ ОСНОВНЫЕ КОМАНДЫ
+/bal — показать баланс по текущей группе
+/his — история операций за сегодня
+/his 01.12.2025 — история за дату (ДД.ММ.ГГГГ)
+/del — удалить операцию (за сегодня, через пароль)
+/ex — экспорт операций в Excel (за всё время)
+/ex сегодня — экспорт за сегодня
+/ex 15.01.2026 — экспорт за дату
+/allbal — Excel: остатки по всем группам (только staff)
+/chats — список групп, которые есть в базе (только staff)
+/cancel — отмена ввода пароля при удалении
 
-Операции (для сотрудников):
-- Взнос: "взнос наличными 5000 usd"
-- Выдача: "выдача наличными 3000 usd"
-- Возврат: "возврат 1000 usd"
+━━━━━━━━━━━━━━━━━━
+✅ КАК ДОБАВЛЯТЬ ОПЕРАЦИИ (только staff)
 
-В личном чате используй [ГРУППА]:
+1) Авто-поступления (банк)
+Просто отправь текст банка, бот сам распознает «поступили / зачислено» и сумму.
+В личке ОБЯЗАТЕЛЬНО указывать группу:
 [УЗ] поступили 5000 usdt
-[Денис] выдача наличными 2000 usd
 
-Поддерживаемые валюты:
+2) Ручные операции (в личке указывать [ГРУППА])
+[УЗ] поступили 5000 usdt
+[УЗ] взнос наличными 1000 usd
+[УЗ] выдача 2000 usd
+[УЗ] оплата пп 1500 usd
+[УЗ] харбор комиссия 50 usd
+[УЗ] запрос банку 65 usd
+
+3) Конвертация (фикс/откуп)
+Формат:
+[УЗ] фикс 140000 cny 11.4 rub
+Что делает бот:
++140000 CNY
+-(140000 * 11.4) RUB
+
+━━━━━━━━━━━━━━━━━━
+💱 Валюты:
 USD, EUR, RUB, CNY, KGS, KZT, USDT, AED
+
+⚠️ SWIFT/OCR распознавание по фото сейчас ОТКЛЮЧЕНО.
 """
     await update.message.reply_text(help_text, parse_mode=None)
 
@@ -1762,13 +1484,6 @@ def main():
     logger.info("Запуск бота...")
     print("🤖 ЗАПУСК БОТА...")
 
-    # Показываем информацию об OCR
-    try:
-        from ocr_advanced import print_ocr_info
-        print_ocr_info()
-    except Exception as e:
-        logger.warning(f"Не удалось показать OCR info: {e}")
-
     migrate_legacy_currencies()
 
     application = (
@@ -1816,20 +1531,20 @@ def main():
     application.add_handler(CommandHandler("cancel", cancel_any))
     application.add_handler(CommandHandler("chats", cmd_chats))
 
+
     # Callback кнопки
     logger.info("📝 Регистрация callback обработчиков...")
     application.add_handler(CallbackQueryHandler(general_button_callback, pattern="^(show_balance|show_history)$"))
     application.add_handler(CallbackQueryHandler(undo_select_operation, pattern="^undo_select_"))
     application.add_handler(CallbackQueryHandler(cancel_undo, pattern="^cancel_undo$"))
 
-    # Обработка фото (SWIFT)
-    logger.info("📝 Регистрация обработчика фото (SWIFT)...")
-    application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-
     # Текстовые обработчики
     logger.info("📝 Регистрация текстовых обработчиков...")
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_delete_password), group=0)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text), group=1)
+    application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r'^/allbal(@\w+)?(\s|$)'), cmd_balances),
+    group=-2
+)
 
     async def post_init(app: Application):
         global batch_task
@@ -1853,7 +1568,6 @@ def main():
     print("\n" + "=" * 60)
     print("🚀 БОТ УСПЕШНО ЗАПУЩЕН")
     print("=" * 60)
-    print("  📷 SWIFT парсинг: ВКЛЮЧЁН (Tesseract + OpenCV)")
     print("  📊 Команды экспорта: /ex, /ex сегодня, /ex 15.01.2026")
     print("=" * 60 + "\n")
 

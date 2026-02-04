@@ -9,6 +9,10 @@ from typing import List, Tuple, Dict
 from config import CURRENCIES
 import os
 import logging
+from collections import defaultdict
+from openpyxl import Workbook
+from openpyxl.styles import Font
+from openpyxl.utils import get_column_letter
 
 logger = logging.getLogger(__name__)
 
@@ -243,6 +247,63 @@ class Database:
 
         return row["balance"] if row else 0.0
 
+    def get_group_balances_table(self) -> Dict[str, Dict[str, float]]:
+        """
+        Таблица остатков:
+        {
+          "Название группы": {"USD": 10, "RUB": 500, ...},
+          ...
+        }
+        """
+        conn = self.get_connection()
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT
+                COALESCE(c.chat_name, CAST(b.chat_id AS TEXT)) AS group_name,
+                b.currency,
+                b.balance
+            FROM balances b
+            LEFT JOIN chats c ON c.chat_id = b.chat_id
+            ORDER BY group_name, b.currency
+        """)
+        rows = cur.fetchall()
+        conn.close()
+
+        table = defaultdict(dict)
+        for r in rows:
+            table[r["group_name"]][r["currency"]] = float(r["balance"] or 0.0)
+
+        # гарантируем все валюты из CURRENCIES
+        for group_name in table:
+            for currency in CURRENCIES:
+                table[group_name].setdefault(cur, 0.0)
+        # после заполнения валют
+        table = {g: curmap for g, curmap in table.items()
+                if any(abs(v) > 1e-9 for v in curmap.values())}
+
+
+        return dict(table)
+    
+    def get_total_balances_all_groups(self) -> Dict[str, float]:
+        """Итого по валютам по всем чатам/группам"""
+        conn = self.get_connection()
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT currency, COALESCE(SUM(balance), 0) AS total
+            FROM balances
+            GROUP BY currency
+            ORDER BY currency
+        """)
+        rows = cur.fetchall()
+        conn.close()
+
+        result = {r["currency"]: float(r["total"] or 0.0) for r in rows}
+        for cur_ in CURRENCIES:
+            result.setdefault(cur_, 0.0)
+        return result
+
     def get_operations(
         self,
         chat_id: int,
@@ -297,6 +358,7 @@ class Database:
             )
             for row in rows
         ]
+    
 
     def get_operations_by_date(self, chat_id: int, date_from=None, date_to=None):
         conn = self.get_connection()
@@ -612,12 +674,14 @@ class Database:
 
         return best_id if best_score >= 20 else None
 
+    @staticmethod
     def safe_sheet_name(name: str, fallback: str) -> str:
         if not name:
             name = fallback
         for ch in r'\/:*?[]':
             name = name.replace(ch, "_")
         return name[:31].strip()
+
 
     def clear_all(self):
         conn = self.get_connection()
@@ -680,3 +744,48 @@ class Database:
 
         conn.commit()
         conn.close()
+
+
+    def export_group_balances_to_excel(self, filepath: str):
+        """
+        Экспорт таблицы остатков групп в Excel
+        """
+        table = self.get_group_balances_table()
+        totals = self.get_total_balances_all_groups()
+        currencies = list(CURRENCIES)
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Остатки групп"
+
+        # ---------- Заголовок ----------
+        headers = ["Группа"] + currencies
+        ws.append(headers)
+
+        header_font = Font(bold=True)
+        for col in range(1, len(headers) + 1):
+            ws.cell(row=1, column=col).font = header_font
+
+        # ---------- Данные по группам ----------
+        for group_name in sorted(table.keys()):
+            safe_name = str(group_name).replace("\n", " ").replace("|", "/")
+            row = [safe_name] + [table[group_name].get(cur, 0.0) for cur in currencies]
+            ws.append(row)
+
+        # ---------- ИТОГО ----------
+        total_row_idx = ws.max_row + 1
+        ws.append(["ИТОГО"] + [totals.get(cur, 0.0) for cur in currencies])
+
+        for col in range(1, len(headers) + 1):
+            ws.cell(row=total_row_idx, column=col).font = Font(bold=True)
+
+        # ---------- Форматирование ----------
+        for col in range(2, len(headers) + 1):
+            for row in range(2, ws.max_row + 1):
+                ws.cell(row=row, column=col).number_format = "#,##0.00"
+
+        # Автоширина колонок
+        for col in range(1, len(headers) + 1):
+            ws.column_dimensions[get_column_letter(col)].width = 18
+
+        wb.save(filepath)
