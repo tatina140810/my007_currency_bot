@@ -1605,9 +1605,12 @@ def main():
     logger.info("📝 Регистрация текстовых обработчиков...")
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_delete_password), group=0)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text), group=1)
-    application.add_handler(MessageHandler(filters.TEXT & filters.Regex(r'^/allbal(@\w+)?(\s|$)'), cmd_balances),
+    application.add_handler(MessageHandler(filters.COMMAND & filters.Regex(r"^[\s\u00A0\u200B\u200C\u200D]*[/／]allbal(?:@\w+)?(?:\s|$)"
+        ),
+        cmd_balances
+    ),
     group=-2
-)
+    )
 
     async def post_init(app: Application):
         global batch_task
