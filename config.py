@@ -8,7 +8,7 @@ BOT_TOKEN = "8555695431:AAF69crWuv8krwg95uCsjR2bYuYAv9ccwAw"
 
 # Поддерживаемые валюты
 CURRENCIES = ["USD", "EUR", "RUB", "CNY", "AED", "KGS", "USDT", "KZT",]
-
+REPORT_CHAT_ID = -1001922337698   
 
 # Типы операций
 OPERATION_TYPES = [

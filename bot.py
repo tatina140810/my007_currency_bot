@@ -12,6 +12,8 @@ from datetime import datetime, date, timezone
 from zoneinfo import ZoneInfo
 from collections import defaultdict
 from typing import Dict
+from config import REPORT_CHAT_ID
+from report_export import export_report_income_matrix
 
 from PIL import Image, ImageOps
 
@@ -931,7 +933,63 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ============================================================
 # КОМАНДЫ
 # ============================================================
+async def cmd_rep(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    user = update.effective_user
 
+    # Только личка
+    if not chat or chat.type != "private":
+        return
+
+    # Если нужно — ограничь доступ только staff
+    # if not is_staff(user.id):
+    #     await update.message.reply_text("⛔️ Только для сотрудников", parse_mode=None)
+    #     return
+
+    # Дата отчёта: по умолчанию сегодня, можно /rep 02.02.2026
+    report_date = datetime.now(KG_TZ).date()
+    if context.args:
+        arg = " ".join(context.args).strip()
+        parsed = None
+        for fmt in ("%d.%m.%Y", "%Y-%m-%d", "%d.%m.%y"):
+            try:
+                parsed = datetime.strptime(arg, fmt).date()
+                break
+            except ValueError:
+                continue
+        if not parsed:
+            await update.message.reply_text(
+                "❌ Неверный формат даты.\nПример: /rep сегодня или /rep 05.02.2026",
+                parse_mode=None
+            )
+            return
+        report_date = parsed
+
+    report_date_str = report_date.isoformat()
+
+    rows = db.get_report_income_by_date(REPORT_CHAT_ID, report_date_str)
+    if not rows:
+        await update.message.reply_text(
+            f"За {report_date.strftime('%d.%m.%Y')} нет подходящих поступлений в чате {REPORT_CHAT_ID}.",
+            parse_mode=None
+        )
+        return
+
+    base_dir = os.path.join(os.getcwd(), "outputs")
+    os.makedirs(base_dir, exist_ok=True)
+
+    filename = f"report_income_{report_date_str}.xlsx"
+    output_path = os.path.join(base_dir, filename)
+
+    # экспорт в отдельном потоке, чтобы не блокировать event loop
+    await asyncio.to_thread(export_report_income_matrix, rows, output_path, report_date_str)
+
+    with open(output_path, "rb") as f:
+        await update.message.reply_document(
+            document=f,
+            filename=filename,
+            caption=f"📄 Отчет поступлений за {report_date.strftime('%d.%m.%Y')}\nИсточник: чат {REPORT_CHAT_ID}",
+        )
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /start"""
     user = update.effective_user
@@ -1443,6 +1501,10 @@ async def cmd_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("\n".join(lines), parse_mode=None)
 
+def extract_client_from_bank_text(text: str) -> str:
+    t = (text or "").strip().rstrip(".!,;:)'\"")
+    m = CLIENT_AT_END_RE.search(t)
+    return (m.group(1).upper() if m else "UNKNOWN")
 
 async def general_button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработка callback кнопок"""
@@ -1530,6 +1592,7 @@ def main():
     application.add_handler(CommandHandler("export", export_wrapper))
     application.add_handler(CommandHandler("cancel", cancel_any))
     application.add_handler(CommandHandler("chats", cmd_chats))
+    application.add_handler(CommandHandler("rep", cmd_rep))
 
 
     # Callback кнопки

@@ -34,6 +34,38 @@ class Database:
         # self.cursor.execute("SELECT DISTINCT chat_id FROM operations")
         # return [row[0] for row in self.cursor.fetchall()]
 
+    def get_report_income_by_date(self, chat_id: int, report_date: str):
+        """
+        Возвращает список строк для отчёта по доходам за дату:
+        [(client, currency, amount), ...]
+
+        В твоей БД "income" нет, приходы берём из operations:
+        - amount > 0  => приход
+        - client берём из description (как "клиент")
+        report_date: 'YYYY-MM-DD' (например '2026-02-05')
+        """
+        conn = self.get_connection()
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT
+                COALESCE(NULLIF(TRIM(description), ''), 'Без клиента') AS client,
+                currency,
+                COALESCE(SUM(amount), 0) AS amount
+            FROM operations
+            WHERE chat_id = ?
+            AND amount > 0
+            AND date(timestamp) = date(?)
+            GROUP BY client, currency
+            ORDER BY client ASC, currency ASC
+        """, (chat_id, report_date))
+
+        rows = cur.fetchall()
+        conn.close()
+
+        # rows сейчас sqlite3.Row, а тебе надо обычные кортежи (client, currency, amount)
+        return [(r["client"], r["currency"], float(r["amount"] or 0.0)) for r in rows]
+
 
     def get_connection(self):
         """Создание стабильного подключения к SQLite (safe for asyncio)"""
