@@ -985,7 +985,15 @@ async def cmd_rep(update: Update, context: ContextTypes.DEFAULT_TYPE):
     report_date_str = report_date.isoformat()
     logger.info(f"[REP] Дата отчета: {report_date_str}")  # ✅ ДОБАВЛЕНО
 
-    rows = db.get_report_income_by_date(REPORT_CHAT_ID, report_date_str)
+    rows_raw = db.get_report_income_by_date(REPORT_CHAT_ID, report_date_str)
+
+    rows = []
+    for message_text, cur, amt in rows_raw:
+        client_name = extract_client_name(message_text)
+        rows.append((client_name, cur, amt, message_text))
+
+    await asyncio.to_thread(export_report_income_matrix, rows, output_path, report_date_str)
+    
     logger.info(f"[REP] Найдено строк: {len(rows) if rows else 0}")  # ✅ ДОБАВЛЕНО
     
     if not rows:

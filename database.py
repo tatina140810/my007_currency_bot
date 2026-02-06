@@ -4,6 +4,7 @@
 """
 
 import sqlite3
+import re
 from datetime import datetime
 from typing import List, Tuple, Dict
 from config import CURRENCIES
@@ -13,6 +14,7 @@ from collections import defaultdict
 from openpyxl import Workbook
 from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
+from openpyxl.comments import Comment
 
 logger = logging.getLogger(__name__)
 
@@ -34,37 +36,55 @@ class Database:
         # self.cursor.execute("SELECT DISTINCT chat_id FROM operations")
         # return [row[0] for row in self.cursor.fetchall()]
 
+
     def get_report_income_by_date(self, chat_id: int, report_date: str):
         """
-        Возвращает список строк для отчёта по доходам за дату:
-        [(client, currency, amount), ...]
-
-        В твоей БД "income" нет, приходы берём из operations:
-        - amount > 0  => приход
-        - client берём из description (как "клиент")
-        report_date: 'YYYY-MM-DD' (например '2026-02-05')
+        Возвращает список строк для отчёта:
+        [(client_name, currency, amount, full_message), ...]
+        где client_name извлечен из description,
+        а full_message — исходный description (пойдет в комментарий).
         """
         conn = self.get_connection()
         cur = conn.cursor()
 
         cur.execute("""
             SELECT
-                COALESCE(NULLIF(TRIM(description), ''), 'Без клиента') AS client,
+                COALESCE(NULLIF(TRIM(description), ''), 'Без клиента') AS full_message,
                 currency,
-                COALESCE(SUM(amount), 0) AS amount
+                amount
             FROM operations
             WHERE chat_id = ?
             AND amount > 0
             AND date(timestamp) = date(?)
-            GROUP BY client, currency
-            ORDER BY client ASC, currency ASC
+            ORDER BY timestamp ASC
         """, (chat_id, report_date))
 
         rows = cur.fetchall()
         conn.close()
 
-        # rows сейчас sqlite3.Row, а тебе надо обычные кортежи (client, currency, amount)
-        return [(r["client"], r["currency"], float(r["amount"] or 0.0)) for r in rows]
+        agg = defaultdict(float)                 # (client_name, currency) -> sum
+        msgs = defaultdict(list)                 # client_name -> list of full messages
+
+        for r in rows:
+            full_message = r["full_message"]
+            cur_ = r["currency"]
+            amt = float(r["amount"] or 0.0)
+
+            client_name = self.extract_client_name(full_message)
+            key = (client_name, cur_)
+            agg[key] += amt
+
+            if full_message:
+                msgs[client_name].append(str(full_message))
+
+        # собираем итоговый список
+        out = []
+        for (client_name, cur_), total_amt in sorted(agg.items(), key=lambda x: (x[0][0], x[0][1])):
+            # в комментарий — все сообщения клиента за день (склеим)
+            full_text = "\n\n---\n\n".join(msgs.get(client_name, []))
+            out.append((client_name, cur_, float(total_amt), full_text))
+
+        return out
 
 
     def get_connection(self):
@@ -578,7 +598,30 @@ class Database:
             row["last_interaction"],
         )
 
+    
+    @staticmethod
+    def extract_client_name(text: str) -> str:
+        """
+        Пример текста:
+        "...-Плательщик ООО \"АВТОЦЕНТРГАЗ-РУСАВТО\"- ЕВРО АВТО"
+        Вернет: "ЕВРО АВТО"
 
+        Логика:
+        1) берем хвост после последнего дефиса (- или —) ближе к концу
+        2) чистим пробелы/переводы строк
+        """
+        if not text:
+            return "Без клиента"
+
+        t = " ".join(str(text).split())  # нормализация пробелов/переносов
+
+        # хвост после последнего " - " или "—" в конце
+        m = re.search(r"(?:\s*[-—]\s*)([^-—]{2,})\s*$", t)
+        if m:
+            name = m.group(1).strip()
+            return name or "Без клиента"
+
+        return "Без клиента"
 
     def delete_operation(self, chat_id: int, operation_id: int) -> bool:
         """
