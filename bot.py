@@ -689,6 +689,79 @@ def parse_bulk_pp_payments(clean_text: str):
 
     return items
 
+def aggregate_bulk_sum(items: list[dict]):
+    """
+    items: то, что возвращает parse_bulk_pp_payments
+    Агрегируем: company (клиент) x currency -> сумма
+    """
+    agg = defaultdict(lambda: defaultdict(float))
+    totals = defaultdict(float)
+
+    for it in items:
+        company = (it.get("company") or "").strip() or "Без клиента"
+        cur = (it.get("currency") or "").strip().upper()
+        amt = float(it.get("amount") or 0.0)
+
+        agg[company][cur] += amt
+        totals[cur] += amt
+
+    return agg, totals
+
+async def cmd_sum(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Работает лучше всего, если /sum отправлять REPLY на сообщение со "Список платежей..."
+    msg = update.effective_message
+    if not msg:
+        return
+
+    # Берем текст либо из reply, либо из текущего сообщения (если вставили список прямо вместе)
+    source_text = None
+    if msg.reply_to_message and msg.reply_to_message.text:
+        source_text = msg.reply_to_message.text
+    else:
+        # если вдруг пользователь прислал /sum и после него вставил текст (редко)
+        # можно попробовать взять весь текст команды, но обычно там только "/sum"
+        source_text = msg.text or ""
+
+    # чистим возможный "/sum"
+    clean_text = source_text
+    if clean_text.strip().lower().startswith("/sum"):
+        clean_text = clean_text.split("\n", 1)[1] if "\n" in clean_text else ""
+
+    bulk_items = parse_bulk_pp_payments(clean_text)
+    if not bulk_items:
+        await msg.reply_text(
+            "❌ Не нашла платежи в сообщении.\n"
+            "Сделай так: отправь список платежей и ответь на него командой /sum",
+            parse_mode=None
+        )
+        return
+
+    agg, totals = aggregate_bulk_sum(bulk_items)
+
+    currencies = sorted({cur for comp in agg for cur in agg[comp].keys()})
+    companies = sorted(agg.keys())
+
+    # Красивый текст-отчет
+    lines = []
+    lines.append("📊 Сумма по клиентам / валютам\n")
+
+    header = ["Клиент"] + currencies
+    lines.append(" | ".join(header))
+    lines.append("-" * 40)
+
+    for comp in companies:
+        row = [comp]
+        for cur in currencies:
+            v = agg[comp].get(cur, 0.0)
+            row.append(f"{v:,.2f}" if abs(v) > 1e-9 else "")
+        lines.append(" | ".join(row))
+
+    lines.append("\nИТОГО:")
+    for cur in currencies:
+        lines.append(f"{cur}: {totals.get(cur, 0.0):,.2f}")
+
+    await msg.reply_text("\n".join(lines), parse_mode=None)
+
 
 def compute_conversion_to_amount(amount: float, rate: float, from_curr: str, to_curr: str) -> float:
     """Вычисляет сумму конвертации"""
@@ -1029,7 +1102,7 @@ async def cmd_rep(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.exception("[REP] Ошибка при создании/отправке отчета")
         await update.message.reply_text(f"❌ Ошибка /rep: {e}", parse_mode=None)
-        
+
 async def cmd_balances(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info("=" * 60)
     logger.info("[ALLBAL] ФУНКЦИЯ ВЫЗВАНА!")
@@ -1651,6 +1724,7 @@ def main():
     application.add_handler(CommandHandler("chats", cmd_chats))
     application.add_handler(CommandHandler("allbal", cmd_balances))  # ✅ ДОБАВЛЕНО
     application.add_handler(CommandHandler("rep", cmd_rep))  # ✅ ДОБАВЛЕНО
+    application.add_handler(CommandHandler("sum", cmd_sum))
 
 
     # Callback кнопки
