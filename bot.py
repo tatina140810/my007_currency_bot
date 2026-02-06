@@ -934,6 +934,12 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # КОМАНДЫ
 # ============================================================
 async def cmd_rep(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info("=" * 60)
+    logger.info("[REP] ФУНКЦИЯ ВЫЗВАНА!")
+    logger.info(f"[REP] chat={update.effective_chat.id if update.effective_chat else None}")
+    logger.info(f"[REP] user={update.effective_user.id if update.effective_user else None}")
+    logger.info(f"[REP] message_text={update.message.text if update.message else None}")
+    logger.info("=" * 60)
     chat = update.effective_chat
     user = update.effective_user
 
@@ -1106,8 +1112,12 @@ async def show_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(text, parse_mode=None)
 
 async def cmd_balances(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.info(f"[ALLBAL] called chat={update.effective_chat.id} user={update.effective_user.id if update.effective_user else None}")
-
+    logger.info("=" * 60)
+    logger.info("[ALLBAL] ФУНКЦИЯ ВЫЗВАНА!")
+    logger.info(f"[ALLBAL] chat={update.effective_chat.id if update.effective_chat else None}")
+    logger.info(f"[ALLBAL] user={update.effective_user.id if update.effective_user else None}")
+    logger.info(f"[ALLBAL] message_text={update.message.text if update.message else None}")
+    logger.info("=" * 60)
     fd, path = tempfile.mkstemp(suffix=".xlsx")
     os.close(fd)
 
