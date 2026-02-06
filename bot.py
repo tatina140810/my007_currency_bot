@@ -937,31 +937,29 @@ async def cmd_rep(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info("=" * 60)
     logger.info("[REP] ФУНКЦИЯ ВЫЗВАНА!")
     logger.info(f"[REP] chat={update.effective_chat.id if update.effective_chat else None}")
-    logger.info(f"[REP] chat_type={update.effective_chat.type if update.effective_chat else None}")  # ✅ ДОБАВЛЕНО
+    logger.info(f"[REP] chat_type={update.effective_chat.type if update.effective_chat else None}")
     logger.info(f"[REP] user={update.effective_user.id if update.effective_user else None}")
     logger.info(f"[REP] message_text={update.message.text if update.message else None}")
     logger.info("=" * 60)
-    
+
     if not update.message:
         logger.error("[REP] update.message is None!")
         return
-    
-    chat = update.effective_chat
-    user = update.effective_user
 
-    # Только личка
+    chat = update.effective_chat
     if not chat:
         logger.error("[REP] chat is None!")
         return
-        
-    logger.info(f"[REP] Тип чата: {chat.type}")  # ✅ ДОБАВЛЕНО
-    
+
+    logger.info(f"[REP] Тип чата: {chat.type}")
+
+    # Только личка
     if chat.type != "private":
         logger.warning(f"[REP] Команда вызвана НЕ в личке: {chat.type}")
         await update.message.reply_text("⛔ Команда работает только в личных сообщениях")
         return
 
-    logger.info("[REP] Начинаем формирование отчета...")  # ✅ ДОБАВЛЕНО
+    logger.info("[REP] Начинаем формирование отчета...")
 
     # Дата отчёта: по умолчанию сегодня, можно /rep 02.02.2026
     report_date = datetime.now(KG_TZ).date()
@@ -974,28 +972,23 @@ async def cmd_rep(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 break
             except ValueError:
                 continue
+
         if not parsed:
             await update.message.reply_text(
-                "❌ Неверный формат даты.\nПример: /rep сегодня или /rep 05.02.2026",
+                "❌ Неверный формат даты.\nПример: /rep 05.02.2026 или /rep 2026-02-05",
                 parse_mode=None
             )
             return
+
         report_date = parsed
 
     report_date_str = report_date.isoformat()
-    logger.info(f"[REP] Дата отчета: {report_date_str}")  # ✅ ДОБАВЛЕНО
+    logger.info(f"[REP] Дата отчета: {report_date_str}")
 
-    rows_raw = db.get_report_income_by_date(REPORT_CHAT_ID, report_date_str)
+    # ✅ Получаем данные (у тебя в db.py уже возвращается 4 поля)
+    rows = db.get_report_income_by_date(REPORT_CHAT_ID, report_date_str)
+    logger.info(f"[REP] Найдено строк: {len(rows) if rows else 0}")
 
-    rows = []
-    for message_text, cur, amt in rows_raw:
-        client_name = extract_client_name(message_text)
-        rows.append((client_name, cur, amt, message_text))
-
-    await asyncio.to_thread(export_report_income_matrix, rows, output_path, report_date_str)
-    
-    logger.info(f"[REP] Найдено строк: {len(rows) if rows else 0}")  # ✅ ДОБАВЛЕНО
-    
     if not rows:
         await update.message.reply_text(
             f"За {report_date.strftime('%d.%m.%Y')} нет подходящих поступлений в чате {REPORT_CHAT_ID}.",
@@ -1008,29 +1001,35 @@ async def cmd_rep(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     filename = f"report_income_{report_date_str}.xlsx"
     output_path = os.path.join(base_dir, filename)
-    
-    logger.info(f"[REP] Путь к файлу: {output_path}")  # ✅ ДОБАВЛЕНО
+    logger.info(f"[REP] Путь к файлу: {output_path}")
 
     try:
         # экспорт в отдельном потоке, чтобы не блокировать event loop
-        await asyncio.to_thread(export_report_income_matrix, rows, output_path, report_date_str)
-        
-        logger.info(f"[REP] Файл создан, размер: {os.path.getsize(output_path)} байт")  # ✅ ДОБАВЛЕНО
+        await asyncio.to_thread(
+            export_report_income_matrix,
+            rows,
+            output_path,
+            report_date_str
+        )
+
+        logger.info(f"[REP] Файл создан, размер: {os.path.getsize(output_path)} байт")
 
         with open(output_path, "rb") as f:
             await update.message.reply_document(
                 document=f,
                 filename=filename,
-                caption=f"📄 Отчет поступлений за {report_date.strftime('%d.%m.%Y')}\nИсточник: чат {REPORT_CHAT_ID}",
+                caption=(
+                    f"📄 Отчет поступлений за {report_date.strftime('%d.%m.%Y')}\n"
+                    f"Источник: чат {REPORT_CHAT_ID}"
+                ),
             )
-        
-        logger.info("[REP] Отчет успешно отправлен!")  # ✅ ДОБАВЛЕНО
-        
+
+        logger.info("[REP] Отчет успешно отправлен!")
+
     except Exception as e:
         logger.exception("[REP] Ошибка при создании/отправке отчета")
-        await update.message.reply_text(f"❌ Ошибка /rep: {e}")
-
-
+        await update.message.reply_text(f"❌ Ошибка /rep: {e}", parse_mode=None)
+        
 async def cmd_balances(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info("=" * 60)
     logger.info("[ALLBAL] ФУНКЦИЯ ВЫЗВАНА!")
