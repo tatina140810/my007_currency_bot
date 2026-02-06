@@ -937,20 +937,31 @@ async def cmd_rep(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info("=" * 60)
     logger.info("[REP] ФУНКЦИЯ ВЫЗВАНА!")
     logger.info(f"[REP] chat={update.effective_chat.id if update.effective_chat else None}")
+    logger.info(f"[REP] chat_type={update.effective_chat.type if update.effective_chat else None}")  # ✅ ДОБАВЛЕНО
     logger.info(f"[REP] user={update.effective_user.id if update.effective_user else None}")
     logger.info(f"[REP] message_text={update.message.text if update.message else None}")
     logger.info("=" * 60)
+    
+    if not update.message:
+        logger.error("[REP] update.message is None!")
+        return
+    
     chat = update.effective_chat
     user = update.effective_user
 
     # Только личка
-    if not chat or chat.type != "private":
+    if not chat:
+        logger.error("[REP] chat is None!")
+        return
+        
+    logger.info(f"[REP] Тип чата: {chat.type}")  # ✅ ДОБАВЛЕНО
+    
+    if chat.type != "private":
+        logger.warning(f"[REP] Команда вызвана НЕ в личке: {chat.type}")
+        await update.message.reply_text("⛔ Команда работает только в личных сообщениях")
         return
 
-    # Если нужно — ограничь доступ только staff
-    # if not is_staff(user.id):
-    #     await update.message.reply_text("⛔️ Только для сотрудников", parse_mode=None)
-
+    logger.info("[REP] Начинаем формирование отчета...")  # ✅ ДОБАВЛЕНО
 
     # Дата отчёта: по умолчанию сегодня, можно /rep 02.02.2026
     report_date = datetime.now(KG_TZ).date()
@@ -972,8 +983,11 @@ async def cmd_rep(update: Update, context: ContextTypes.DEFAULT_TYPE):
         report_date = parsed
 
     report_date_str = report_date.isoformat()
+    logger.info(f"[REP] Дата отчета: {report_date_str}")  # ✅ ДОБАВЛЕНО
 
     rows = db.get_report_income_by_date(REPORT_CHAT_ID, report_date_str)
+    logger.info(f"[REP] Найдено строк: {len(rows) if rows else 0}")  # ✅ ДОБАВЛЕНО
+    
     if not rows:
         await update.message.reply_text(
             f"За {report_date.strftime('%d.%m.%Y')} нет подходящих поступлений в чате {REPORT_CHAT_ID}.",
@@ -986,16 +1000,76 @@ async def cmd_rep(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     filename = f"report_income_{report_date_str}.xlsx"
     output_path = os.path.join(base_dir, filename)
+    
+    logger.info(f"[REP] Путь к файлу: {output_path}")  # ✅ ДОБАВЛЕНО
 
-    # экспорт в отдельном потоке, чтобы не блокировать event loop
-    await asyncio.to_thread(export_report_income_matrix, rows, output_path, report_date_str)
+    try:
+        # экспорт в отдельном потоке, чтобы не блокировать event loop
+        await asyncio.to_thread(export_report_income_matrix, rows, output_path, report_date_str)
+        
+        logger.info(f"[REP] Файл создан, размер: {os.path.getsize(output_path)} байт")  # ✅ ДОБАВЛЕНО
 
-    with open(output_path, "rb") as f:
-        await update.message.reply_document(
-            document=f,
-            filename=filename,
-            caption=f"📄 Отчет поступлений за {report_date.strftime('%d.%m.%Y')}\nИсточник: чат {REPORT_CHAT_ID}",
-        )
+        with open(output_path, "rb") as f:
+            await update.message.reply_document(
+                document=f,
+                filename=filename,
+                caption=f"📄 Отчет поступлений за {report_date.strftime('%d.%m.%Y')}\nИсточник: чат {REPORT_CHAT_ID}",
+            )
+        
+        logger.info("[REP] Отчет успешно отправлен!")  # ✅ ДОБАВЛЕНО
+        
+    except Exception as e:
+        logger.exception("[REP] Ошибка при создании/отправке отчета")
+        await update.message.reply_text(f"❌ Ошибка /rep: {e}")
+
+
+async def cmd_balances(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info("=" * 60)
+    logger.info("[ALLBAL] ФУНКЦИЯ ВЫЗВАНА!")
+    logger.info(f"[ALLBAL] chat={update.effective_chat.id if update.effective_chat else None}")
+    logger.info(f"[ALLBAL] user={update.effective_user.id if update.effective_user else None}")
+    logger.info(f"[ALLBAL] message_text={update.message.text if update.message else None}")
+    logger.info("=" * 60)
+    
+    if not update.message:
+        logger.error("[ALLBAL] update.message is None!")
+        return
+
+    logger.info("[ALLBAL] Начинаем экспорт...")  # ✅ ДОБАВЛЕНО
+
+    fd, path = tempfile.mkstemp(suffix=".xlsx")
+    os.close(fd)
+    
+    logger.info(f"[ALLBAL] Временный файл: {path}")  # ✅ ДОБАВЛЕНО
+
+    try:
+        await asyncio.to_thread(db.export_group_balances_to_excel, path)  # ✅ ASYNC
+        
+        logger.info(f"[ALLBAL] Файл создан, размер: {os.path.getsize(path)} байт")  # ✅ ДОБАВЛЕНО
+
+        filename = f"остатки_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.xlsx"
+        
+        with open(path, "rb") as f:
+            await update.message.reply_document(
+                document=f,
+                filename=filename,
+                caption="Остатки по группам (Excel)"
+            )
+
+        logger.info(f"[ALLBAL] Файл {filename} успешно отправлен!")  # ✅ ДОБАВЛЕНО
+
+    except Exception as e:
+        logger.exception("[ALLBAL] Ошибка")
+        await update.message.reply_text(f"❌ Ошибка /allbal: {e}")
+
+    finally:
+        try:
+            os.remove(path)
+            logger.info(f"[ALLBAL] Временный файл удален: {path}")  # ✅ ДОБАВЛЕНО
+        except Exception as e:
+            logger.warning(f"[ALLBAL] Не удалось удалить временный файл: {e}")
+    
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Команда /start"""
     user = update.effective_user
@@ -1110,40 +1184,6 @@ async def show_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.callback_query.edit_message_text(text, parse_mode=None)
     else:
         await update.message.reply_text(text, parse_mode=None)
-
-async def cmd_balances(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.info("=" * 60)
-    logger.info("[ALLBAL] ФУНКЦИЯ ВЫЗВАНА!")
-    logger.info(f"[ALLBAL] chat={update.effective_chat.id if update.effective_chat else None}")
-    logger.info(f"[ALLBAL] user={update.effective_user.id if update.effective_user else None}")
-    logger.info(f"[ALLBAL] message_text={update.message.text if update.message else None}")
-    logger.info("=" * 60)
-    fd, path = tempfile.mkstemp(suffix=".xlsx")
-    os.close(fd)
-
-    try:
-        db.export_group_balances_to_excel(path)
-
-        filename = f"остатки_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.xlsx"
-        with open(path, "rb") as f:
-            await update.message.reply_document(
-                document=f,
-                filename=filename,
-                caption="Остатки по группам (Excel)"
-            )
-
-        logger.info(f"[ALLBAL] sent file {filename} size={os.path.getsize(path)}")
-
-    except Exception as e:
-        logger.exception("[ALLBAL] error")
-        await update.message.reply_text(f"❌ Ошибка /allbal: {e}")
-
-    finally:
-        try:
-            os.remove(path)
-        except Exception:
-            pass
-
 
 
 async def undo_last_operation(update: Update, context: ContextTypes.DEFAULT_TYPE):
