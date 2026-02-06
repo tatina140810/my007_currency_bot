@@ -950,7 +950,7 @@ async def cmd_rep(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Если нужно — ограничь доступ только staff
     # if not is_staff(user.id):
     #     await update.message.reply_text("⛔️ Только для сотрудников", parse_mode=None)
-    #     return
+
 
     # Дата отчёта: по умолчанию сегодня, можно /rep 02.02.2026
     report_date = datetime.now(KG_TZ).date()
