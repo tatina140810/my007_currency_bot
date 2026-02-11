@@ -1,0 +1,105 @@
+from telegram import Update
+from telegram.ext import ContextTypes
+from app.core.logger import logger
+from app.db.instance import db
+from app.handlers.utils import get_chat_name, get_chat_id
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /start"""
+    user = update.effective_user
+    chat = update.effective_chat
+    
+    if not user or not chat:
+        return
+
+    chat_name = get_chat_name(update)
+    telegram_chat_name = chat.title or chat.first_name or f"Чат {chat.id}"
+    db.register_chat(chat.id, telegram_chat_name, chat.type)
+
+    base_text = f"""Добро пожаловать, {user.first_name}!
+
+Текущий чат: {chat_name}
+
+Команды:
+/bal - Показать баланс
+/his - История операций
+/del - Удалить операцию (по паролю)
+/ex - Экспорт в Excel
+/help - Справка
+
+Операции в чате (для сотрудников):
+- Поступления: "... 1000,00 руб поступили ..."
+- Взнос: "взнос наличными 5000 usd"
+- Выдача: "выдача наличными 3000 usd"
+- Возврат: "возврат 1000 usd"
+
+В личном чате используй [ГРУППА]:
+[УЗ] поступили 5000 usdt
+"""
+    await update.message.reply_text(base_text, parse_mode=None)
+
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_name = get_chat_name(update)
+
+    help_text = f"""📌 СПРАВКА
+Текущий чат: {chat_name}
+
+━━━━━━━━━━━━━━━━━━
+✅ ОСНОВНЫЕ КОМАНДЫ
+/bal — показать баланс по текущей группе
+/his — история операций за сегодня
+/his 01.12.2025 — история за дату (ДД.ММ.ГГГГ)
+/del — удалить операцию (за сегодня, через пароль)
+/ex — экспорт операций в Excel (за всё время)
+/ex сегодня — экспорт за сегодня
+/ex 15.01.2026 — экспорт за дату
+/allbal — Excel: остатки по всем группам (только staff)
+/chats — список групп, которые есть в базе (только staff)
+/cancel — отмена ввода пароля при удалении
+
+━━━━━━━━━━━━━━━━━━
+✅ КАК ДОБАВЛЯТЬ ОПЕРАЦИИ (только staff)
+
+1) Авто-поступления (банк)
+Просто отправь текст банка, бот сам распознает «поступили / зачислено» и сумму.
+В личке ОБЯЗАТЕЛЬНО указывать группу:
+[УЗ] поступили 5000 usdt
+
+2) Ручные операции (в личке указывать [ГРУППА])
+[УЗ] поступили 5000 usdt
+[УЗ] взнос наличными 1000 usd
+[УЗ] выдача 2000 usd
+[УЗ] оплата пп 1500 usd
+[УЗ] харбор комиссия 50 usd
+[УЗ] запрос банку 65 usd
+
+3) Конвертация (фикс/откуп)
+Формат:
+[УЗ] фикс 140000 cny 11.4 rub
+Что делает бот:
++140000 CNY
+-(140000 * 11.4) RUB
+
+━━━━━━━━━━━━━━━━━━
+💱 Валюты:
+USD, EUR, RUB, CNY, KGS, KZT, USDT, AED
+
+⚠️ SWIFT/OCR распознавание по фото сейчас ОТКЛЮЧЕНО.
+"""
+    await update.message.reply_text(help_text, parse_mode=None)
+
+
+async def cancel_any(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /cancel"""
+    if "pending_undo_op_id" in context.user_data:
+        context.user_data.pop("pending_undo_op_id", None)
+        context.user_data.pop("pending_undo_chat_id", None)
+        await update.message.reply_text("Отменено", parse_mode=None)
+        return
+    await update.message.reply_text("Нечего отменять.", parse_mode=None)
+
+
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    """Обработка ошибок"""
+    logger.exception("Unhandled exception", exc_info=context.error)

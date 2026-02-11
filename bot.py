@@ -1014,6 +1014,9 @@ async def cmd_rep(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"[REP] user={update.effective_user.id if update.effective_user else None}")
     logger.info(f"[REP] message_text={update.message.text if update.message else None}")
     logger.info("=" * 60)
+    logger.info(f"[REP] REPORT_CHAT_ID={REPORT_CHAT_ID}")
+    logger.info(f"[REP] DB_PATH={getattr(db, 'db_name', None)}")
+    logger.info(f"[REP] CWD={os.getcwd()}")
 
     if not update.message:
         logger.error("[REP] update.message is None!")
