@@ -184,6 +184,7 @@ async def cmd_cash_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Generate Cash Evening Report.
     """
+    logger.info("[CASH_REPORT] Command triggered")
     chat = update.effective_chat
     if chat.type != "private":
          await update.message.reply_text("Только в личном чате.")
@@ -192,16 +193,21 @@ async def cmd_cash_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
     report_date = datetime.now()
     # Check if opening balance exists
     today_str = report_date.strftime("%Y-%m-%d")
+    logger.info(f"[CASH_REPORT] Checking opening balance for {today_str}")
+    
     existing = db.get_cash_opening_balances(today_str)
     if not existing:
+        logger.info("[CASH_REPORT] No opening balance found")
         await update.message.reply_text("⚠️ Please set the opening balance first using /cash_open")
         return
 
     await update.message.reply_text("⏳ Генерирую отчет...")
+    logger.info("[CASH_REPORT] Generating data...")
     
     try:
         data = await get_report_data(report_date)
         if not data:
+             logger.error("[CASH_REPORT] get_report_data returned None")
              await update.message.reply_text("Ошибка получения данных.")
              return
              
@@ -211,10 +217,13 @@ async def cmd_cash_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
         path = os.path.join("outputs", filename)
         os.makedirs("outputs", exist_ok=True)
         
+        logger.info(f"[CASH_REPORT] Exporting to {path}")
         export_cash_report(data, path)
         
+        logger.info("[CASH_REPORT] Sending file...")
         with open(path, "rb") as f:
             await update.message.reply_document(document=f, filename=filename, caption=f"Cash Report {today_str}")
+        logger.info("[CASH_REPORT] Sent successfully")
             
     except Exception as e:
         logger.exception("Error generating cash report")
