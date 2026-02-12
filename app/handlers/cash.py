@@ -66,59 +66,113 @@ async def cmd_cash_open(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_opening_balances_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Handle text input for opening balances.
+    Supports multiline and single-line with multiple currencies.
+    Format: "USD 100 EUR 500" or "100 USD \n 500 EUR"
     """
     text = update.message.text
-    lines = text.splitlines()
     today = datetime.now().strftime("%Y-%m-%d")
     
     parsed_balances = {}
-    errors = []
     
-    for line in lines:
-        parts = line.strip().split()
-        if len(parts) < 2:
-            continue
-            
-        # Try to guess which part is amount and which is currency
-        # "USD 1200" or "1200 USD"
+    # Pre-processing: replace nbsp
+    text = text.replace("\u00A0", " ")
+    
+    # Strategy 1: Regex for "Currency Amount" (e.g. "Рубли 12 000 USD 500")
+    # Curr: letters/symbols, Amount: digits/spaces/dots/commas
+    # We use a lookahead to stop at the next currency-like token
+    import re
+    
+    # Regex pattern:
+    # 1. Currency (group 'c')
+    # 2. Spaces
+    # 3. Amount (group 'a') - greedy until...
+    # 4. Lookahead for (Space + Currency) OR End of String
+    
+    # Note: Currency regex approximation: 2+ letters or specific symbols
+    curr_pattern = r"(?:[a-zA-Zа-яА-Я]{2,}|[$€¥₽])"
+    
+    pattern_curr_first = re.compile(
+        rf"(?P<c>{curr_pattern})\s+(?P<a>[\d\s.,]+?)(?=\s+{curr_pattern}|\s*$)"
+    )
+    
+    # Strategy 2: "Amount Currency" (e.g. "12000 Руб 500 USD")
+    pattern_amount_first = re.compile(
+        rf"(?P<a>[\d\s.,]+?)\s+(?P<c>{curr_pattern})(?=\s+[\d\s.,]|\s*$)"
+    )
+
+    # Try matching
+    matches_cf = list(pattern_curr_first.finditer(text))
+    matches_af = list(pattern_amount_first.finditer(text))
+    
+    # Heuristic: choose the strategy with MORE matches, or default to Currency First if ambiguous?
+    # User example: "Рубли 12027 694.000 USD 181 361.67..." -> Currency First
+    
+    final_matches = []
+    if len(matches_cf) >= len(matches_af) and len(matches_cf) > 0:
+        final_matches = matches_cf
+    elif len(matches_af) > 0:
+        final_matches = matches_af
+    else:
+        # Fallback to line-by-line simple split
+        pass
+
+    processed_count = 0
+    
+    for m in final_matches:
+        raw_curr = m.group("c")
+        raw_amount = m.group("a")
         
-        amount = None
-        currency = None
-        
-        # Simple heuristic
         try:
-            val1 = parse_human_number(parts[0])
-            amount = val1
-            currency = normalize_currency(parts[1])
+            val = parse_human_number(raw_amount)
+            curr = normalize_currency(raw_curr)
+            if curr: # Only if valid currency
+                parsed_balances[curr] = val
+                processed_count += 1
         except:
-             try:
-                val2 = parse_human_number(parts[1])
-                amount = val2
-                currency = normalize_currency(parts[0])
-             except:
-                pass
-        
-        if amount is not None and currency:
-            parsed_balances[currency] = amount
-        else:
-            errors.append(line)
+            pass
+            
+    # Fallback: if regex failed completely, try line-by-line (legacy simple)
+    if not parsed_balances:
+        lines = text.splitlines()
+        for line in lines:
+            parts = line.strip().split()
+            if len(parts) < 2:
+                continue
+            
+            # Simple heuristic provided before
+            try:
+                # Try parts[0]=Amount
+                val = parse_human_number(parts[0])
+                curr = normalize_currency(parts[1])
+                if curr: parsed_balances[curr] = val
+            except:
+                try:
+                    # Try parts[0]=Currency (and assume parts[1] is amount)
+                    # But parts[1] might be partial amount "12 000"?
+                    # Only works for "RUB 12000" (no spaces in number)
+                    val = parse_human_number(parts[1])
+                    curr = normalize_currency(parts[0])
+                    if curr: parsed_balances[curr] = val
+                except:
+                    pass
 
     if not parsed_balances:
         await update.message.reply_text(
-            "❌ Не удалось распознать данные. Попробуйте снова.\n"
-            "Формат: ВАЛЮТА СУММА"
+            "❌ Не удалось распознать данные.\n"
+            "Попробуйте формат: 'USD 100' или '100 USD' (можно списком)."
         )
         return WAITING_FOR_BALANCES # Loop
 
+    # Save
     await set_opening_balances(today, parsed_balances)
     
     msg = f"✅ Начальный остаток на {today} сохранен:\n"
     for cur, amt in parsed_balances.items():
         msg += f"{cur}: {amt:,.2f}\n"
-    
-    if errors:
-        msg += "\n⚠️ Не распознано:\n" + "\n".join(errors)
 
+    # Warning if we suspect we missed something?
+    # Hard to know.
+    
     await update.message.reply_text(msg)
     return ConversationHandler.END
 
