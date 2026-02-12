@@ -14,7 +14,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.comments import Comment
 
 from app.db.database import Database
-from app.core.config import CURRENCIES, OPERATION_TYPES
+from app.core.config import CURRENCIES, OPERATION_TYPES, REPORT_CHAT_ID
 
 logger = logging.getLogger(__name__)
 
@@ -637,7 +637,25 @@ def export_group_balances_to_excel(db: Database, filepath: str):
     Экспорт таблицы остатков групп в Excel
     """
     table = db.get_group_balances_table()
-    totals = db.get_total_balances_all_groups()
+    
+    # Исключаем REPORT_CHAT_ID
+    # Получаем имя чата, так как в table ключи - это имена
+    report_chat_data = db.get_chat(REPORT_CHAT_ID)
+    if report_chat_data:
+        report_name = report_chat_data[1]  # chat_name
+        if report_name in table:
+            del table[report_name]
+    
+    # Также пробуем удалить по строковому ID, если имя не нашлось или совпадает с ID
+    if str(REPORT_CHAT_ID) in table:
+        del table[str(REPORT_CHAT_ID)]
+
+    # Пересчитываем итоги вручную, так как мы изменили таблицу
+    totals = defaultdict(float)
+    for grp_balances in table.values():
+        for curr, amount in grp_balances.items():
+            totals[curr] += amount
+
     currencies = list(CURRENCIES)
 
     wb = Workbook()
