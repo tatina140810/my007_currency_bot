@@ -22,6 +22,7 @@ OPERATION_TYPES = [
     "SWIFT",
     "Комиссия 1%",
     "Запрос банку",
+    "Internal Exchange",
 ]
 ADMIN_PASSWORD = "123"
 

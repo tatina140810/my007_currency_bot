@@ -89,6 +89,30 @@ class Database:
             )
         ''')
 
+        # NEW: Таблица начальных остатков (Cash Evening Report)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS cash_opening_balances (
+                date TEXT NOT NULL,
+                currency TEXT NOT NULL,
+                amount REAL NOT NULL,
+                group_id INTEGER DEFAULT 0,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (date, currency, group_id)
+            )
+        ''')
+
+        # NEW: Таблица внутренних курсов (Cash Evening Report)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS internal_rates (
+                group_id INTEGER DEFAULT 0,
+                from_currency TEXT NOT NULL,
+                to_currency TEXT NOT NULL,
+                rate REAL NOT NULL,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (group_id, from_currency, to_currency)
+            )
+        ''')
+
         conn.commit()
         conn.close()
 
@@ -677,4 +701,70 @@ class Database:
             logger.info("Миграция валют выполнена (via DB class)")
         except Exception as e:
             logger.error(f"Ошибка миграции валют: {e}")
+
+    def set_cash_opening_balance(self, date_str: str, currency: str, amount: float, group_id: int = 0):
+        """
+        Установить начальный остаток для кассы
+        """
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT OR REPLACE INTO cash_opening_balances (date, currency, amount, group_id, updated_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (date_str, currency, amount, group_id))
+        
+        conn.commit()
+        conn.close()
+
+    def get_cash_opening_balances(self, date_str: str, group_id: int = 0) -> Dict[str, float]:
+        """
+        Получить все начальные остатки на дату
+        """
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT currency, amount FROM cash_opening_balances
+            WHERE date = ? AND group_id = ?
+        ''', (date_str, group_id))
+        
+        rows = cursor.fetchall()
+        conn.close()
+        
+        return {row["currency"]: row["amount"] for row in rows}
+
+    def set_internal_rate(self, from_curr: str, to_curr: str, rate: float, group_id: int = 0):
+        """
+        Установить внутренний курс
+        """
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT OR REPLACE INTO internal_rates (group_id, from_currency, to_currency, rate, updated_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (group_id, from_curr, to_curr, rate))
+        
+        conn.commit()
+        conn.close()
+
+    def get_internal_rate(self, from_curr: str, to_curr: str, group_id: int = 0) -> float | None:
+        """
+        Получить внутренний курс. 
+        Если прямого курса нет, можно попробовать обратный (1/rate), 
+        но пока реализуем только прямой поиск.
+        """
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT rate FROM internal_rates
+            WHERE group_id = ? AND from_currency = ? AND to_currency = ?
+        ''', (group_id, from_curr, to_curr))
+        
+        row = cursor.fetchone()
+        conn.close()
+        
+        return row["rate"] if row else None
 
