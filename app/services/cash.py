@@ -91,7 +91,7 @@ async def get_report_data(report_date, group_id: int = 0) -> Dict[str, Any]:
         desc = row["description"] or ""
         
         # Фильтрация типов
-        if op_type == "Взнос наличными":
+        if op_type in ("Взнос наличными", "Поступление"):
             if currency in data:
                 data[currency]["deposit"] += amount
                 

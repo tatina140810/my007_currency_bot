@@ -67,6 +67,9 @@ class TestCashReport(unittest.TestCase):
         # Cash Withdrawal
         self.db.add_operation(chat_id, "Выдача наличных", "USD", -200.0, "Withdrawal")
         
+        # Bank Income (should comply with user request to include in report)
+        self.db.add_operation(chat_id, "Поступление", "USD", 300.0, "Bank Income")
+        
         # Internal Exchange
         # USD -> RUB @ 90
         # -100 USD
@@ -81,10 +84,10 @@ class TestCashReport(unittest.TestCase):
         
         # Logic:
         # Opening USD: 1000
-        # Deposit USD: 500
+        # Deposit USD: 500 (Cash) + 300 (Bank) = 800
         # Withdraw USD: 200 (abs)
         # Exchange Out USD: 100 (abs)
-        # Closing USD = 1000 + 500 - 200 - 100 = 1200
+        # Closing USD = 1000 + 800 - 200 - 100 = 1500
         
         # RUB:
         # Opening: 0
@@ -121,10 +124,10 @@ class TestCashReport(unittest.TestCase):
              
              usd_data = data["summary"]["USD"]
              self.assertEqual(usd_data["opening"], 1000.0)
-             self.assertEqual(usd_data["deposit"], 500.0)
+             self.assertEqual(usd_data["deposit"], 800.0)
              self.assertEqual(usd_data["withdraw"], 200.0)
              self.assertEqual(usd_data["exchange_out"], 100.0)
-             self.assertEqual(usd_data["closing"], 1200.0)
+             self.assertEqual(usd_data["closing"], 1500.0)
              
              rub_data = data["summary"]["RUB"]
              self.assertEqual(rub_data["exchange_in"], 9000.0)

@@ -27,7 +27,7 @@ def export_cash_report(data: dict, output_path: str):
     ws1 = wb.active
     ws1.title = f"Cash_Report_{data['date']}"
     
-    headers = ["Currency", "Opening Balance", "Deposits", "Exchange +/-", "Withdrawals", "Closing Balance"]
+    headers = ["Валюта", "Нач. остаток", "Приход", "Обмен +/-", "Расход", "Кон. остаток"]
     ws1.append(headers)
     
     # Styles
@@ -80,7 +80,7 @@ def export_cash_report(data: dict, output_path: str):
 
     # --- Sheet 2: Exchanges ---
     ws2 = wb.create_sheet(f"Exchanges_{data['date']}")
-    headers2 = ["Time", "Group", "From Currency", "Amount", "To Currency", "Converted Amount", "Internal Rate", "Comment/User"]
+    headers2 = ["Время", "Группа", "Из валюты", "Сумма", "В валюту", "Получено", "Курс", "Комментарий"]
     ws2.append(headers2)
     
     for col in range(1, len(headers2) + 1):
