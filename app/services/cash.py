@@ -13,14 +13,9 @@ async def set_opening_balances(date_str: str, balances: Dict[str, float], group_
     for currency, amount in balances.items():
         db.set_cash_opening_balance(date_str, currency, amount, group_id)
 
-async def get_report_data(report_date, group_id: int = 0) -> Dict[str, Any]:
+def get_report_data(report_date, group_id: int = 0) -> Dict[str, Any]:
     """
-    Собирает данные для отчета:
-    - Начальный остаток
-    - Приходы (Взнос наличными)
-    - Расходы (Выдача наличных)
-    - Обмены (Внутренние)
-    - Итоговый остаток
+    Собирает данные для отчета.
     """
     date_str = report_date.strftime("%Y-%m-%d")
     
@@ -42,45 +37,19 @@ async def get_report_data(report_date, group_id: int = 0) -> Dict[str, Any]:
         }
 
     # 2. Получаем операции за день
-    # Нам нужны операции по ВСЕМ чатам? Или только те, что помечены как Cash?
-    # "Only include cash-related operations... type='cash_deposit', type='cash_exchange', type='cash_withdraw'"
-    
-    # Сейчас у нас есть типы: "Взнос наличными", "Выдача наличных"
-    # "Cash exchanges" - новый тип, который мы будем создавать.
-    
-    # Мы должны пройтись по operation_types и маппить их.
-    # В базе операции привязаны к chat_id. 
-    # Если отчет "общий", то нужно собирать со всех чатов? 
-    # Или operations table имеет group_id? Нет, operations имеет chat_id.
-    # Но cash_opening_balances имеет group_id.
-    
-    # Assumption: The report collects CASH operations from ALL chats (or specific logic).
-    # "Cash deposits (/rep operations related to cash only)" -> implies using existing operations.
-    
-    # Давайте соберем операции со всех чатов за дату
-    # Для этого нужен метод в db, который ищет по дату по всем чатам?
-    # db.get_operations_by_date принимает chat_id.
-    # Нам нужно get_all_operations_by_date(date).
-    
-    # Add helper in services/cash.py for now to iterate all chats, or add method to DB.
-    # Adding method to DB is better performance-wise, but iterating is safer for now without touching DB schema too much.
-    # However, iterating 100 chats is slow.
-    # Let's use SQL query to fetch globally.
-    
-    # But wait, `db.get_operations_by_date` filters by chat_id.
-    # I should add `get_all_operations_by_date` to Database or reuse connection here.
-    
     conn = db.get_connection()
-    cur = conn.cursor()
-    
-    cur.execute("""
-        SELECT operation_type, currency, amount, description
-        FROM operations
-        WHERE date(timestamp) = date(?)
-    """, (date_str,))
-    
-    rows = cur.fetchall()
-    conn.close()
+    try:
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT operation_type, currency, amount, description
+            FROM operations
+            WHERE date(timestamp) = date(?)
+        """, (date_str,))
+        
+        rows = cur.fetchall()
+    finally:
+        conn.close()
     
     exchanges_list = []
     

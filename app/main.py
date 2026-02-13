@@ -41,6 +41,19 @@ def main():
     logger.info("Запуск бота...")
     print("🤖 ЗАПУСК БОТА...")
 
+    # --- Single Instance Lock ---
+    import fcntl
+    import sys
+    import os
+    
+    lock_file = open("bot.lock", "w")
+    try:
+        fcntl.lockf(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except IOError:
+        print("❌ Another instance is already running. Exiting.")
+        sys.exit(1)
+    # ----------------------------
+
     # Миграция
     db.migrate_legacy_data()
 

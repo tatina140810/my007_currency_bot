@@ -205,7 +205,10 @@ async def cmd_cash_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info("[CASH_REPORT] Generating data...")
     
     try:
-        data = await get_report_data(report_date)
+        # Run blocking DB call in thread
+        import asyncio
+        data = await asyncio.to_thread(get_report_data, report_date)
+        
         if not data:
              logger.error("[CASH_REPORT] get_report_data returned None")
              await update.message.reply_text("Ошибка получения данных.")
@@ -218,7 +221,8 @@ async def cmd_cash_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
         os.makedirs("outputs", exist_ok=True)
         
         logger.info(f"[CASH_REPORT] Exporting to {path}")
-        export_cash_report(data, path)
+        # Run blocking Excel export in thread
+        await asyncio.to_thread(export_cash_report, data, path)
         
         logger.info("[CASH_REPORT] Sending file...")
         with open(path, "rb") as f:

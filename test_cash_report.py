@@ -113,8 +113,8 @@ class TestCashReport(unittest.TestCase):
              old_db_ref = app.services.cash.db
              app.services.cash.db = self.db
              
-             import asyncio
-             data = asyncio.run(get_report_data(datetime.now(), group_id=0))
+             # Call synchronously!
+             data = get_report_data(datetime.now(), group_id=0)
              
              # Restore
              app.services.cash.db = old_db_ref
