@@ -63,9 +63,18 @@ class TestCashReport(unittest.TestCase):
         # Cash Withdrawal
         self.db.add_operation(chat_id, "Выдача наличных", "USD", -200.0, "Withdrawal")
         
-        # Bank Income (should comply with user request to include in report as withdrawal/subtraction)
+        # Bank Income ("Поступление" -> Treated as Expense/Transfer to Bank)
         self.db.add_operation(chat_id, "Поступление", "USD", 300.0, "Bank Income")
         
+        # NEW: Payment Return ("Возврат по ПП" -> Deposit)
+        self.db.add_operation(chat_id, "Возврат по ПП", "USD", 150.0, "Return Payment")
+        
+        # NEW: Payment Expense ("Оплата ПП" -> Withdraw)
+        self.db.add_operation(chat_id, "Оплата ПП", "USD", 50.0, "Payment Expense")
+
+        # NEW: Commission ("Комиссия" -> Withdraw)
+        self.db.add_operation(chat_id, "Комиссия", "USD", 10.0, "Fee")
+
         # Internal Exchange
         # USD -> RUB @ 90
         # -100 USD
@@ -84,8 +93,6 @@ class TestCashReport(unittest.TestCase):
              app.services.cash.db = self.db
              
              # Call synchronously!
-             # We pass group_id=0 to get ALL operations (or we could pass chat_id to test filtering)
-             # Let's test filtering: Pass chat_id=100. It should return results.
              data = get_report_data(datetime.now(), group_id=chat_id)
              
              # Restore
@@ -96,10 +103,22 @@ class TestCashReport(unittest.TestCase):
              
              # Logic:
              # Opening USD: 1000
-             # Deposit USD: 500 (Cash "Взнос наличными")
-             # Withdraw USD: 200 (Cash "Выдача") + 300 (Bank "Поступление") = 500
-             # Exchange Out USD: 100
-             # Closing USD = 1000 (Open) + 500 (Dep) - 500 (With) - 100 (Exch) + 0 (Exch In) = 900
+             # DEPOSITS: 
+             #   + 500 (Cash "Взнос наличными")
+             #   + 300 (Bank "Поступление" - now Deposit as requested)
+             #   + 150 (Return "Возврат по ПП")
+             #   = 950
+             
+             # WITHDRAWALS:
+             #   - 200 (Cash "Выдача") 
+             #   - 50 ("Оплата ПП")
+             #   - 10 ("Комиссия")
+             #   = 260
+             
+             # EXCHANGE OUT:
+             #   - 100
+             
+             # CLOSING USD = 1000 + 950 - 260 - 100 = 1590
              
              # RUB:
              # Opening: 0
@@ -108,10 +127,10 @@ class TestCashReport(unittest.TestCase):
              
              usd_data = data["summary"]["USD"]
              self.assertEqual(usd_data["opening"], 1000.0)
-             self.assertEqual(usd_data["deposit"], 500.0)
-             self.assertEqual(usd_data["withdraw"], 500.0)
+             self.assertEqual(usd_data["deposit"], 950.0)
+             self.assertEqual(usd_data["withdraw"], 260.0)
              self.assertEqual(usd_data["exchange_out"], 100.0)
-             self.assertEqual(usd_data["closing"], 900.0)
+             self.assertEqual(usd_data["closing"], 1590.0)
              
              rub_data = data["summary"]["RUB"]
              self.assertEqual(rub_data["exchange_in"], 9000.0)
@@ -120,7 +139,7 @@ class TestCashReport(unittest.TestCase):
              # NEW: Verify Details
              self.assertIn("all_operations", data)
              all_ops = data["all_operations"]
-             self.assertEqual(len(all_ops), 5) 
+             self.assertEqual(len(all_ops), 8) # Added 3 new ops + previous 5 = 8 
              
              # Test Filtering: Query for random group_id -> Should be empty/None
              app.services.cash.db = self.db

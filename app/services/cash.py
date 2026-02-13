@@ -98,30 +98,30 @@ def get_report_data(report_date, group_id: int = 0) -> Dict[str, Any]:
             "desc": desc
         })
 
-        # --- LOGIC CHANGE FOR CASH REPORT ---
-        # 1. "Взнос наличными" -> Deposit (+)
-        if op_type == "Взнос наличными":
+        # --- LOGIC CHANGE FOR CASH REPORT (Based on User Request) ---
+        # Formula: Closing = Opening + (Deposit + Refund) - (Expense + BankTransfer) +/- Exchange
+        
+        # 1. DEPOSITS (Income to Cash)
+        if op_type in ("Взнос наличными", "Возврат по ПП", "Поступление"):
             if currency in data:
                 data[currency]["deposit"] += amount
 
-        # 2. "Поступление" (Bank Income) -> Withdraw (-)
-        # User Logic: Subtract /rep (Income) from Cash Balance.
-        # It means money went to bank, so it left the cash register.
-        elif op_type == "Поступление":
+        # 2. WITHDRAWALS / EXPENSES (Money leaving Cash)
+        # - "Выдача наличных" / "Выдача"
+        # - "Оплата ПП" (Payment)
+        # - "Комиссия" / "Комиссия 1%" / "Запрос банку"
+        elif op_type in (
+            "Выдача наличных", "Выдача", 
+            "Оплата ПП", 
+            "Комиссия", "Комиссия 1%", "Запрос банку", "Харбор комиссия"
+        ):
              if currency in data:
-                # We add to 'withdraw' bucket so it gets subtracted later
-                # Or we can track it separately? Let's add to withdraw for now to keep formula simple 
-                # or maybe separate column 'Bank' in future? 
-                # For now, treat as withdrawal as requested.
-                data[currency]["withdraw"] += amount # Amount is positive in DB, so we add to withdraw total
-
-        # 3. "Выдача" -> Withdraw (-)
-        elif op_type in ("Выдача наличных", "Выдача"):
-             if currency in data:
+                # Amount in DB is usually positive for these operations (except potentially internal logic?)
+                # We add to 'withdraw' bucket so it gets subtracted later.
                 data[currency]["withdraw"] += abs(amount)
 
-        # 4. Exchange
-        elif op_type == "Internal Exchange":
+        # 3. EXCHANGES
+        elif op_type in ("Internal Exchange", "Конвертация"):
             if amount < 0:
                 if currency in data:
                     data[currency]["exchange_out"] += abs(amount)
@@ -138,7 +138,7 @@ def get_report_data(report_date, group_id: int = 0) -> Dict[str, Any]:
             })
 
     # 3. Closing Balance
-    # Closing = Opening + Deposits - Withdrawals (includes Bank Income) + Exch_In - Exch_Out
+    # Closing = Opening + Deposits - Withdrawals + Exch_In - Exch_Out
     for cur, vals in data.items():
         vals["closing"] = vals["opening"] + vals["deposit"] - vals["withdraw"] + vals["exchange_in"] - vals["exchange_out"]
 
