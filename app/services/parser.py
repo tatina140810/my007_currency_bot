@@ -148,9 +148,17 @@ def parse_human_number(s: str) -> float:
         return float(s)
     
     if has_dot and not has_comma:
-        if re.fullmatch(r"\d{1,3}(\.\d{3})+", s):
+        # If it looks like 1.234.567 -> thousands
+        if re.fullmatch(r"\d{1,3}(\.\d{3}){2,}", s):
             s = s.replace(".", "")
             return float(s)
+        # If it looks like 1.234 -> Could be 1234 or 1.234. 
+        # In currency context, usually 2 decimals. 
+        # But if we have explicit "1.234", it is ambiguous.
+        # However, for this specific bot, user inputs "6 140,00".
+        # Let's assume if it is a small number (one group of 3 digits), it is decimal.
+        # Or better: check context. But here we only have string.
+        # Let's default to float if simple dot.
         return float(s)
     
     if has_comma and not has_dot:
@@ -216,6 +224,20 @@ def parse_manual_operation_line(text: str) -> Optional[Dict]:
         return None
 
     t = text.lower().strip()
+
+    # ВОЗВРАТ ПО ПП (формат: Сумма Валюта - Возврат пп ...)
+    # Пример: 6 140,00 долл - Возврат пп на Бакай ...
+    m = re.search(
+        r"^([\d\s.,]+)\s+([a-zа-я$€¥]{2,6})\s*[-–—]\s*(возврат\s*пп.*)",
+        t,
+    )
+    if m:
+        return {
+            "type": "Возврат по ПП",
+            "amount": parse_human_number(m.group(1)),
+            "currency": normalize_currency(m.group(2)),
+            "description": m.group(3).capitalize(), # Extract description starting from "Возврат пп..."
+        }
 
     # ПОСТУПЛЕНИЕ
     m = re.search(

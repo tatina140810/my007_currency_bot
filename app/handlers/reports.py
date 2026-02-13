@@ -107,11 +107,12 @@ async def cmd_rep(update: Update, context: ContextTypes.DEFAULT_TYPE):
     report_date_str = report_date.isoformat()
     logger.info(f"[REP] Дата отчета: {report_date_str}")
 
-    rows = db.get_report_income_by_date(REPORT_CHAT_ID, report_date_str)
+    # Pass None as chat_id to search GLOBALLY
+    rows = db.get_report_income_by_date(None, report_date_str)
 
     if not rows:
         await update.message.reply_text(
-            f"За {report_date.strftime('%d.%m.%Y')} нет подходящих поступлений в чате {REPORT_CHAT_ID}.",
+            f"За {report_date.strftime('%d.%m.%Y')} нет подходящих поступлений (по всем чатам).",
             parse_mode=None
         )
         return
@@ -136,7 +137,7 @@ async def cmd_rep(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 filename=filename,
                 caption=(
                     f"📄 Отчет поступлений за {report_date.strftime('%d.%m.%Y')}\n"
-                    f"Источник: чат {REPORT_CHAT_ID}"
+                    f"Источник: Все чаты / Группы"
                 ),
             )
 

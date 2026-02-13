@@ -641,25 +641,37 @@ class Database:
         conn.commit()
         conn.close()
     
-    def get_report_income_by_date(self, chat_id: int, report_date: str):
+    def get_report_income_by_date(self, chat_id: int | None, report_date: str):
         """
         Возвращает список строк для отчёта:
         [(client_name, currency, amount, full_message), ...]
+        If chat_id is None, searches all chats.
         """
         conn = self.get_connection()
         cur = conn.cursor()
 
-        cur.execute("""
+        # Modified query to JOIN with chats and handle optional chat_id
+        sql_base = """
             SELECT
-                COALESCE(NULLIF(TRIM(description), ''), 'Без клиента') AS full_message,
-                currency,
-                amount
-            FROM operations
-            WHERE chat_id = ?
-            AND amount > 0
-            AND date(timestamp) = date(?)
-            ORDER BY timestamp ASC
-        """, (chat_id, report_date))
+                COALESCE(NULLIF(TRIM(o.description), ''), 'Без клиента') AS full_message,
+                o.currency,
+                o.amount,
+                c.chat_name
+            FROM operations o
+            LEFT JOIN chats c ON o.chat_id = c.chat_id
+            WHERE o.amount > 0
+            AND date(o.timestamp) = date(?)
+        """
+        
+        params = [report_date]
+        
+        if chat_id is not None:
+            sql_base += " AND o.chat_id = ?"
+            params.append(chat_id)
+            
+        sql_base += " ORDER BY o.timestamp ASC"
+        
+        cur.execute(sql_base, tuple(params))
 
         rows = cur.fetchall()
         conn.close()
@@ -671,13 +683,22 @@ class Database:
             full_message = r["full_message"]
             cur_ = r["currency"]
             amt = float(r["amount"] or 0.0)
+            chat_name = r["chat_name"] or ""
 
             client_name = extract_client_name(full_message)
+            
+            # Fallback to chat_name if "Без клиента"
+            if client_name == "Без клиента" and chat_name:
+                # Clean up chat name if needed
+                client_name = chat_name
+
             key = (client_name, cur_)
             agg[key] += amt
 
-            if full_message:
+            if full_message and full_message != "Без клиента":
                 msgs[client_name].append(str(full_message))
+            elif chat_name:
+                 msgs[client_name].append(f"Чат: {chat_name}")
 
         out = []
         for (client_name, cur_), total_amt in sorted(agg.items(), key=lambda x: (x[0][0], x[0][1])):

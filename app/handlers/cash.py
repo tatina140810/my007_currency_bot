@@ -205,9 +205,26 @@ async def cmd_cash_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info("[CASH_REPORT] Generating data...")
     
     try:
+        # Determine group_id
+        # if private chat -> global (0) OR ask user. 
+        # User said: "only on records that requested /cash_report" -> implies local scope.
+        # But if admin runs in private chat, maybe they want global?
+        # For now: 
+        # - Private chat -> Global (0)
+        # - Group chat -> Group ID
+        
+        chat_type = update.effective_chat.type
+        group_id = 0
+        
+        if chat_type != "private":
+            group_id = update.effective_chat.id
+            logger.info(f"[CASH_REPORT] Scoped to group {group_id} ({update.effective_chat.title})")
+        else:
+            logger.info("[CASH_REPORT] Private chat -> Global report")
+
         # Run blocking DB call in thread
         import asyncio
-        data = await asyncio.to_thread(get_report_data, report_date)
+        data = await asyncio.to_thread(get_report_data, report_date, group_id)
         
         if not data:
              logger.error("[CASH_REPORT] get_report_data returned None")
