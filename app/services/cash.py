@@ -41,10 +41,19 @@ def get_report_data(report_date, group_id: int = 0) -> Dict[str, Any]:
     try:
         cur = conn.cursor()
         
+        # JOIN with chats to get group name
         cur.execute("""
-            SELECT operation_type, currency, amount, description
-            FROM operations
-            WHERE date(timestamp) = date(?)
+            SELECT 
+                o.operation_type, 
+                o.currency, 
+                o.amount, 
+                o.description, 
+                o.timestamp,
+                c.chat_name
+            FROM operations o
+            LEFT JOIN chats c ON o.chat_id = c.chat_id
+            WHERE date(o.timestamp) = date(?)
+            ORDER BY o.timestamp ASC
         """, (date_str,))
         
         rows = cur.fetchall()
@@ -52,40 +61,44 @@ def get_report_data(report_date, group_id: int = 0) -> Dict[str, Any]:
         conn.close()
     
     exchanges_list = []
+    all_operations = []
     
     for row in rows:
         op_type = row["operation_type"]
         currency = row["currency"]
         amount = float(row["amount"])
         desc = row["description"] or ""
+        ts = row["timestamp"] # string or datetime? sqlite3.Row returns string usually unless parsed
+        group_name = row["chat_name"] or "Unknown"
         
-        # Фильтрация типов
+        # Format time
+        try:
+            # Timestamp format in DB is likely "YYYY-MM-DD HH:MM:SS"
+            dt = datetime.strptime(str(ts), "%Y-%m-%d %H:%M:%S")
+            time_str = dt.strftime("%H:%M")
+        except:
+            time_str = str(ts)
+
+        # Collect for Details Sheet
+        all_operations.append({
+            "time": time_str,
+            "group": group_name,
+            "type": op_type,
+            "currency": currency,
+            "amount": amount,
+            "desc": desc
+        })
+
+        # Фильтрация типов для Summary
         if op_type in ("Взнос наличными", "Поступление"):
             if currency in data:
                 data[currency]["deposit"] += amount
                 
         elif op_type in ("Выдача наличных", "Выдача"):
-             # В базе Выдача обычно с минусом? 
-             # add_operation(..., sign * amount) -> если amount > 0 в аргументах, то в базу пишется с минусом?
-             # Смотрим operations.py:
-             # sign = -1 if op_type in ("Выдача наличных", ...)
-             # await queue_operation(..., sign * amount)
-             # Значит в базе лежит отрицательное число.
-             # Для отчета нам нужно абсолютное значение в колонку Withdrawals (или просто sum)
              if currency in data:
                 data[currency]["withdraw"] += abs(amount)
 
         elif op_type == "Internal Exchange":
-            # Тут сложнее. Обмен состоит из двух операций в БД?
-            # Или мы будем хранить его как одну операцию?
-            # Если мы используем add_operation, то это 2 строки: -100 USD, +9000 RUB.
-            # Как понять что они связаны?
-            # Обычно по timestamp или description.
-            # "Internal exchange 100 USD to RUB rate 90" -> description="Internal Exchange to RUB rate 90" / "from USD"
-            
-            # Если мы хотим красивый список обменов (Sheet 2), нам нужно их связывать.
-            # Пока просто агрегируем суммы.
-            
             if amount < 0:
                 if currency in data:
                     data[currency]["exchange_out"] += abs(amount)
@@ -93,31 +106,22 @@ def get_report_data(report_date, group_id: int = 0) -> Dict[str, Any]:
                  if currency in data:
                     data[currency]["exchange_in"] += amount
 
-            # Сохраняем для Sheet 2
-            # (нужна логика связывания для Sheet 2, пока просто список)
+            # Заполняем exchanges_list отдельно, если нужно (или можно брать из all_operations)
             exchanges_list.append({
                 "currency": currency,
                 "amount": amount,
-                "desc": desc
+                "desc": desc,
+                "time": time_str,
+                "group": group_name
             })
 
     # 3. Closing Balance
-    # Closing = Opening + Deposits + Exch(In) - Exch(Out) - Withdrawals
-    # Note: Exch(Out) is positive number here representing overflow.
-    # Actually Balance logic:
-    # Balance = Opening + Deposits - Withdrawals + ExchTotal
-    
     for cur, vals in data.items():
-        # deposit is positive
-        # withdraw is positive (magnitude)
-        # exchange_in is positive
-        # exchange_out is positive (magnitude)
-        
-        # closing = opening + deposit - withdraw + exchange_in - exchange_out
         vals["closing"] = vals["opening"] + vals["deposit"] - vals["withdraw"] + vals["exchange_in"] - vals["exchange_out"]
 
     return {
         "summary": data, 
-        "exchanges": exchanges_list, 
+        "exchanges": exchanges_list, # Kept for backward compatibility if needed, or use all_operations for details
+        "all_operations": all_operations,
         "date": date_str
     }

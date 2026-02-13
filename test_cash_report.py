@@ -133,8 +133,20 @@ class TestCashReport(unittest.TestCase):
              self.assertEqual(rub_data["exchange_in"], 9000.0)
              self.assertEqual(rub_data["closing"], 9000.0)
              
+             # NEW: Verify Details
+             self.assertIn("all_operations", data)
+             all_ops = data["all_operations"]
+             self.assertEqual(len(all_ops), 5) # 5 operations added above
+             
+             # Check one op
+             dep_op = next((op for op in all_ops if op["amount"] == 300.0), None)
+             self.assertIsNotNone(dep_op)
+             self.assertEqual(dep_op["type"], "Поступление")
+             self.assertEqual(dep_op["group"], "TestChat") # Should be joined correctly
+             
         except ImportError:
-            print("Could not import app.services.cash, skipping service test")
+            print("Could not import app.services.cash, skipping service test") # Should not happen if path is correct
+            raise
         except Exception as e:
             import traceback
             traceback.print_exc()

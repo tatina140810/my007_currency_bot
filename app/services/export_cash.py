@@ -116,4 +116,40 @@ def export_cash_report(data: dict, output_path: str):
         adjusted_width = (max_length + 2)
         ws2.column_dimensions[column].width = adjusted_width
 
+    # --- Sheet 3: Details ---
+    ws3 = wb.create_sheet(f"Details_{data['date']}")
+    headers3 = ["Время", "Группа", "Тип", "Валюта", "Сумма", "Описание"]
+    ws3.append(headers3)
+    
+    for col in range(1, len(headers3) + 1):
+        cell = ws3.cell(row=1, column=col)
+        cell.font = header_font
+        cell.alignment = center_align
+        cell.border = thin_border
+
+    all_ops = data.get("all_operations", [])
+    for op in all_ops:
+        row = [
+            op.get("time", ""),
+            op.get("group", ""),
+            op.get("type", ""),
+            op.get("currency", ""),
+            op.get("amount", 0),
+            op.get("desc", "")
+        ]
+        ws3.append(row)
+
+    # Autosize columns sheet 3
+    for col in ws3.columns:
+        max_length = 0
+        column = col[0].column_letter
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        adjusted_width = (max_length + 2)
+        ws3.column_dimensions[column].width = adjusted_width
+
     wb.save(output_path)
