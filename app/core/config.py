@@ -27,7 +27,7 @@ OPERATION_TYPES = [
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "123")
 
 # Настройки базы данных
-DATABASE_NAME = os.getenv("DATABASE_NAME", "currency_operations.db")
+DATABASE_NAME = os.getenv("DATABASE_NAME", "operations.db")
 DB_PATH = os.path.join(os.getcwd(), DATABASE_NAME)
 
 # Настройки комиссий

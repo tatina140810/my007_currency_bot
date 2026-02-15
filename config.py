@@ -27,4 +27,4 @@ OPERATION_TYPES = [
 ADMIN_PASSWORD = "123"
 
 # Настройки базы данных
-DATABASE_NAME = 'currency_operations.db'
+DATABASE_NAME = 'operations.db'
