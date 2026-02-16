@@ -97,6 +97,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 4) Внутренний обмен (Cash Report):
 /cash_exchange [Группа] 100 USD to RUB
 
+5) Ручная конвертация ([rep]):
+[rep] 69000 EUR 91.8
+(Купить 69000 EUR по курсу 91.8 RUB)
+
 ━━━━━━━━━━━━━━━━━━
 💱 Валюты:
 USD, EUR, RUB, CNY, KGS, KZT, USDT, AED

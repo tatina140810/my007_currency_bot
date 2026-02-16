@@ -414,3 +414,66 @@ cash_open_handler = ConversationHandler(
     },
     fallbacks=[CommandHandler("cancel", cancel_cash_open)],
 )
+
+async def manual_exchange(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Handle manual currency exchange via command:
+    [rep] <TARGET_AMOUNT> <TARGET_CURRENCY> <RATE>
+    Example: [rep] 69000 EUR 91.8
+    Logic: Buy 69000 EUR at rate 91.8 RUB/EUR.
+    """
+    text = update.message.text
+    content = text[5:].strip() # len("[rep]") = 5
+    
+    parts = content.split()
+    if len(parts) < 3:
+        await update.message.reply_text(
+            "⚠️ Ошибка формата.\n"
+            "Используйте: `[rep] <Сумма_Валюты> <Валюта> <Курс>`\n"
+            "Пример: `[rep] 69000 EUR 91.8`",
+            parse_mode="Markdown"
+        )
+        return
+
+    try:
+        target_amount = parse_human_number(parts[0])
+        target_curr_code = parts[1]
+        rate = parse_human_number(parts[2])
+    except:
+        await update.message.reply_text("❌ Ошибка числа. Проверьте формат суммы и курса.")
+        return
+
+    if target_amount <= 0 or rate <= 0:
+        await update.message.reply_text("❌ Сумма и курс должны быть больше 0.")
+        return
+
+    target_curr = normalize_currency(target_curr_code)
+    if not target_curr:
+        await update.message.reply_text(f"❌ Неизвестная валюта: {target_curr_code}")
+        return
+        
+    if target_curr == "RUB":
+        await update.message.reply_text("❌ Целевая валюта не может быть RUB.")
+        return
+
+    # Calculate RUB amount to deduct
+    # RUB = Target * Rate
+    rub_amount = target_amount * rate
+    
+    # Description
+    desc = f"FX: Buy {target_curr} {target_amount:,.2f} @ {rate}, Total RUB: {rub_amount:,.2f}"
+    
+    chat_id = update.effective_chat.id
+    
+    # 1. Deduct RUB
+    await queue_operation(chat_id, "Manual FX", "RUB", -rub_amount, desc)
+    
+    # 2. Add Target Currency
+    await queue_operation(chat_id, "Manual FX", target_curr, target_amount, desc)
+    
+    await update.message.reply_text(
+        f"✅ Обмен записан:\n"
+        f"📉 RUB: -{rub_amount:,.2f}\n"
+        f"📈 {target_curr}: +{target_amount:,.2f}\n"
+        f"Курс: {rate}"
+    )

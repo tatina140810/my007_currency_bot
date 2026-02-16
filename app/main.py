@@ -91,13 +91,16 @@ def main():
     application.add_handler(CommandHandler("clear", cmd_clear_all)) # /clear all handled inside? no, cmd_clear_all checks logic
 
     # Handlers from app/handlers/cash.py
-    from app.handlers.cash import cash_open_handler, cmd_cash_report, cmd_set_rate, cmd_internal_exchange
+    from app.handlers.cash import cash_open_handler, cmd_cash_report, cmd_set_rate, cmd_internal_exchange, manual_exchange
 
     # Команды Cash Report
     application.add_handler(cash_open_handler)
     application.add_handler(CommandHandler("cash_report", cmd_cash_report))
     application.add_handler(CommandHandler("set_rate", cmd_set_rate))
     application.add_handler(CommandHandler("cash_exchange", cmd_internal_exchange)) # New command
+    
+    # Manual Currency Exchange: [rep] ...
+    application.add_handler(MessageHandler(filters.Regex(r"(?i)^\[rep\]"), manual_exchange))
 
     # Callback кнопки
     application.add_handler(CallbackQueryHandler(general_button_callback, pattern="^(show_balance|show_history)$"))
