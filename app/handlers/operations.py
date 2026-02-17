@@ -94,7 +94,13 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 target_chat_id = chat.id
 
         # Use Forward Date if available (for forwarded bank messages), else Message Date
-        msg_date = message.forward_date or message.date
+        # PTB v20+ uses forward_origin, older uses forward_date
+        msg_date = message.date
+        
+        if getattr(message, "forward_origin", None):
+             msg_date = message.forward_origin.date
+        elif getattr(message, "forward_date", None):
+             msg_date = message.forward_date
 
         await queue_operation(
             target_chat_id,

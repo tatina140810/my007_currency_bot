@@ -12,20 +12,26 @@ from app.core.config import REPORT_CHAT_ID
 class TestBankProcessing(unittest.IsolatedAsyncioTestCase):
     async def test_bank_income_report_chat(self):
         # MESSAGE from REPORT_CHAT_ID
-        # Should NOT require group tag
-        # Should use message.date
+        # should use message.date (no forward)
         
         fixed_date = datetime(2025, 5, 20, 10, 0, 0)
         
         update = MagicMock()
         update.effective_chat.id = REPORT_CHAT_ID
-        update.effective_chat.type = "channel" # or group
-        update.effective_user.id = 999 
-        update.effective_user.is_bot = False
+        update.effective_chat.type = "channel"
+        
+        user_mock = MagicMock()
+        user_mock.id = 999
+        user_mock.is_bot = False
+        update.effective_user = user_mock
+        
         update.effective_message.text = "Поступление 5000 USD от Client A"
         update.effective_message.date = fixed_date
-        # IMPORTANT: Set forward_date to None so "or" works correctly
-        update.effective_message.forward_date = None 
+        
+        # Ensure forward attributes are missing/None
+        update.effective_message.forward_origin = None
+        update.effective_message.forward_date = None
+        
         update.effective_message.reply_text = AsyncMock()
 
         with patch("app.handlers.operations.is_staff", return_value=True), \
@@ -41,8 +47,6 @@ class TestBankProcessing(unittest.IsolatedAsyncioTestCase):
             # Verify queue_operation called with correct ID and TIMESTAMP
             mock_queue.assert_called_once()
             args = mock_queue.call_args 
-            # args[0] = (chat_id, type, currency, amount, desc), kwargs={'timestamp': ...}
-            
             call_args = args[0]
             call_kwargs = args[1]
             
@@ -52,19 +56,29 @@ class TestBankProcessing(unittest.IsolatedAsyncioTestCase):
 
     async def test_forwarded_bank_message(self):
         # MESSAGE Forwarded to Group
-        # Should use forward_date
+        # Should use forward_origin.date (PTB v21 logic)
         
         original_date = datetime(2025, 1, 1, 12, 0, 0)
-        forward_date = datetime(2025, 1, 2, 12, 0, 0) # Later date
+        forward_date = datetime(2025, 1, 2, 12, 0, 0)
         
         update = MagicMock()
-        update.effective_chat.id = 555 # Client Group
+        update.effective_chat.id = 555 
         update.effective_chat.type = "group"
-        update.effective_user.id = 999 
-        update.effective_user.is_bot = False
+        
+        user_mock = MagicMock()
+        user_mock.id = 999
+        user_mock.is_bot = False
+        update.effective_user = user_mock
+
         update.effective_message.text = "Поступление 100 USD"
         update.effective_message.date = forward_date
-        update.effective_message.forward_date = original_date # Key!
+        
+        # Mock forward_origin for v21
+        mock_origin = MagicMock()
+        mock_origin.date = original_date
+        update.effective_message.forward_origin = mock_origin
+        update.effective_message.forward_date = None
+        
         update.effective_message.reply_text = AsyncMock()
 
         with patch("app.handlers.operations.is_staff", return_value=True), \
@@ -78,6 +92,7 @@ class TestBankProcessing(unittest.IsolatedAsyncioTestCase):
             await handle_text(update, MagicMock())
             
             # Verify queue_operation called with original_date
+            mock_queue.assert_called_once()  # Ensure called first
             args = mock_queue.call_args 
             call_kwargs = args[1]
             self.assertEqual(call_kwargs.get("timestamp"), original_date)
@@ -89,10 +104,15 @@ class TestBankProcessing(unittest.IsolatedAsyncioTestCase):
         update = MagicMock()
         update.effective_chat.id = 123
         update.effective_chat.type = "private"
-        update.effective_user.id = 999
-        update.effective_user.is_bot = False
-        update.effective_message.text = "поступили 100 USD" # No group tag
+        
+        user_mock = MagicMock()
+        user_mock.id = 999
+        user_mock.is_bot = False
+        update.effective_user = user_mock
+
+        update.effective_message.text = "поступили 100 USD"
         update.effective_message.date = datetime.now()
+        update.effective_message.forward_origin = None
         update.effective_message.forward_date = None
         update.effective_message.reply_text = AsyncMock()
 
