@@ -91,15 +91,37 @@ def export_cash_report(data: dict, output_path: str):
         
     exchanges = data.get("exchanges", [])
     for ex in exchanges:
+        # Fallback if specific keys are missing (logic from cash.py)
+        # cash.py sends: currency, amount, desc, time, group
+        
+        from_c = ex.get("from_curr", "")
+        to_c = ex.get("to_curr", "")
+        amt = ex.get("amount", 0)
+        conv = ex.get("converted", 0)
+        rate = ex.get("rate", 0)
+        
+        # If standard keys missing, try to map from simple op
+        if not from_c and not to_c and "currency" in ex:
+            curr = ex["currency"]
+            val = float(amt)
+            if val < 0:
+                from_c = curr
+                amt = abs(val) # "Sum" column usually source amount
+            else:
+                to_c = curr
+                conv = val # "Received" column
+                # And usually we don't set 'amt' (source amount) if we don't know it here
+                # But headers are: From, Amount, To, Received
+        
         row = [
             ex.get("time", ""),
             ex.get("group", ""),
-            ex.get("from_curr", ""),
-            ex.get("amount", 0),
-            ex.get("to_curr", ""),
-            ex.get("converted", 0),
-            ex.get("rate", 0),
-            ex.get("user", "")
+            from_c,
+            amt,        # Amount (Source)
+            to_c,
+            conv,       # Received (Target)
+            rate,
+            ex.get("desc", "") # Use 'desc' key as in cash.py
         ]
         ws2.append(row)
 
