@@ -135,8 +135,19 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             group_from_manual=group_name,
         )
     except ValueError as e:
-        await message.reply_text(str(e))
-        return
+        # SPECIAL CASE: [internal_report] commands allow defaulting to current chat (DM)
+        # if no group is specified.
+        is_internal = False
+        if manual["type"] == "Manual Buy FX":
+            is_internal = True
+        elif manual["type"] == "Выдача наличных" and manual.get("description") == "Выдача наличных (internal_report)":
+            is_internal = True
+            
+        if is_internal and is_private and not group_name:
+            target_chat_id = chat.id
+        else:
+            await message.reply_text(str(e))
+            return
 
     op_type = manual["type"]
     amount = manual["amount"]

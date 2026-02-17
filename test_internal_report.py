@@ -23,12 +23,12 @@ class TestInternalReport(unittest.IsolatedAsyncioTestCase):
 
         with patch("app.handlers.operations.is_staff", return_value=True), \
              patch("app.handlers.operations.db") as mock_db, \
-             patch("app.handlers.operations.resolve_target_chat_id", return_value=123), \
+             patch("app.handlers.operations.resolve_target_chat_id", side_effect=ValueError("Group needed")), \
              patch("app.handlers.operations.queue_operation", new_callable=AsyncMock) as mock_queue:
             
             await handle_text(update, MagicMock())
             
-            # Expect 2 calls to queue_operation
+            # Expect 2 calls to queue_operation (Defaulted to chat 123)
             self.assertEqual(mock_queue.call_count, 2)
             
             # Call 1: +69000 EUR
@@ -61,9 +61,10 @@ class TestInternalReport(unittest.IsolatedAsyncioTestCase):
         update.effective_message.text = "[internal_report] наличные 5000 USD"
         update.effective_message.reply_text = AsyncMock()
 
+        # Simulate resolve failing, but fallback logic working
         with patch("app.handlers.operations.is_staff", return_value=True), \
              patch("app.handlers.operations.db") as mock_db, \
-             patch("app.handlers.operations.resolve_target_chat_id", return_value=123), \
+             patch("app.handlers.operations.resolve_target_chat_id", side_effect=ValueError("Group needed")), \
              patch("app.handlers.operations.queue_operation", new_callable=AsyncMock) as mock_queue:
             
             await handle_text(update, MagicMock())
