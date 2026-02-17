@@ -225,6 +225,35 @@ def parse_manual_operation_line(text: str) -> Optional[Dict]:
 
     t = text.lower().strip()
 
+    # MANUAL BUY FX: [internal_report] <AMOUNT> <CURRENCY> <RATE>
+    # Example: [internal_report] 69000 EUR 91.8
+    m = re.search(
+        r"\[internal_report\]\s+([\d.,]+)\s+([a-zа-я$€¥]{2,6})\s+([\d.,]+)",
+        t,
+    )
+    if m:
+        return {
+            "type": "Manual Buy FX",
+            "amount": parse_human_number(m.group(1)),
+            "currency": normalize_currency(m.group(2)),
+            "rate": parse_human_number(m.group(3)),
+            "description": f"FX: Buy {normalize_currency(m.group(2))} rate {parse_human_number(m.group(3))}",
+        }
+
+    # CASH WITHDRAWAL: [internal_report] наличные <AMOUNT> <CURRENCY>
+    # Example: [internal_report] наличные 5000 USD
+    m = re.search(
+        r"\[internal_report\]\s+наличные\s+([\d.,]+)\s+([a-zа-я$€¥]{2,6})",
+        t,
+    )
+    if m:
+        return {
+            "type": "Выдача наличных",
+            "amount": parse_human_number(m.group(1)),
+            "currency": normalize_currency(m.group(2)),
+            "description": "Выдача наличных (internal_report)",
+        }
+
     # ВОЗВРАТ ПО ПП (формат: Сумма Валюта - Возврат пп ...)
     # Пример: 6 140,00 долл - Возврат пп на Бакай ...
     m = re.search(

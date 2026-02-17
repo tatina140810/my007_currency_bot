@@ -12,7 +12,7 @@ from app.core.constants import KG_TZ
 from app.db.instance import db
 from app.handlers.utils import get_chat_id, get_chat_name, is_staff
 from app.services.export import export_to_excel, export_group_balances_to_excel, export_report_income_matrix
-from app.services.parser import parse_timestamp, parse_bulk_pp_payments
+from app.services.parser import parse_timestamp, parse_bulk_pp_payments, normalize_currency, parse_human_number
 from app.services.math import aggregate_bulk_sum
 
 async def cmd_sum(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -94,7 +94,7 @@ async def cmd_rep(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 break
             except ValueError:
                 continue
-
+    
         if not parsed:
             await update.message.reply_text(
                 "❌ Неверный формат даты.\nПример: /rep 05.02.2026 или /rep 2026-02-05",

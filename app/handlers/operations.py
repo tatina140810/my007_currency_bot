@@ -51,11 +51,13 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     clean_text = text
 
     if is_private:
-        group_tag, clean_text = extract_group_tag(text)
-        if group_tag:
-            # Нормализуем группу
-            group_name = normalize_group_name(group_tag)
-            logger.info(f"📋 Извлечена группа: '{group_tag}' → '{group_name}'")
+        # Если это спец-команда [internal_report], не извлекаем её как группу
+        if not text.lower().startswith("[internal_report]"):
+            group_tag, clean_text = extract_group_tag(text)
+            if group_tag:
+                # Нормализуем группу
+                group_name = normalize_group_name(group_tag)
+                logger.info(f"📋 Извлечена группа: '{group_tag}' → '{group_name}'")
 
     # 5️⃣ АВТО-ПОСТУПЛЕНИЯ (БАНК)
     if looks_like_bank_income(clean_text):
@@ -140,6 +142,56 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     amount = manual["amount"]
     currency = manual["currency"]
     desc = manual.get("description", "")
+
+    # --------------------
+    # MANUAL BUY FX (Internal Report)
+    # --------------------
+    if op_type == "Manual Buy FX":
+        rate = manual["rate"]
+        rub_amount = amount * rate
+        
+        # 1. Add Foreign Currency (+)
+        await queue_operation(
+            target_chat_id, 
+            "Internal Exchange", 
+            currency, 
+            amount, 
+            f"FX: Buy {currency} rate {rate}"
+        )
+        
+        # 2. Deduct RUB (-)
+        await queue_operation(
+            target_chat_id, 
+            "Internal Exchange", 
+            "RUB", 
+            -rub_amount, 
+            f"FX: Buy {currency} rate {rate}"
+        )
+        await message.reply_text(
+            f"✅ [Internal Report] Buy FX\n"
+            f"+{amount:,.2f} {currency}\n"
+            f"-{rub_amount:,.2f} RUB"
+        )
+        return
+
+        return
+
+    # --------------------
+    # MANUAL CASH OUT (Internal Report)
+    # --------------------
+    if op_type == "Выдача наличных" and desc == "Выдача наличных (internal_report)":
+        await queue_operation(
+            target_chat_id, 
+            op_type, 
+            currency, 
+            -amount, 
+            desc
+        )
+        await message.reply_text(
+            f"✅ [Internal Report] Cash Out\n"
+            f"-{amount:,.2f} {currency}"
+        )
+        return
 
     # --------------------
     # КОНВЕРТАЦИЯ
