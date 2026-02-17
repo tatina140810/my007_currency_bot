@@ -142,10 +142,12 @@ class Database:
         operation_type: str,
         currency: str,
         amount: float,
-        description: str = ""
+        description: str = "",
+        timestamp: datetime = None
     ) -> int:
         """
-        Добавить операцию для конкретного чата
+        Добавить операцию для конкретного чата.
+        Если timestamp передан, используем его (для исторических данных или точного времени сообщения).
         """
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -164,10 +166,39 @@ class Database:
                 ''', (chat_id, curr))
 
         # Добавляем операцию
-        cursor.execute('''
-            INSERT INTO operations (chat_id, operation_type, currency, amount, description)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (chat_id, operation_type, currency, amount, description))
+        if timestamp:
+            cursor.execute('''
+                INSERT INTO operations (chat_id, operation_type, currency, amount, description, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (chat_id, operation_type, currency, amount, description, timestamp))
+        else:
+            cursor.execute('''
+                INSERT INTO operations (chat_id, operation_type, currency, amount, description)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (chat_id, operation_type, currency, amount, description))
+
+    def is_duplicate_operation(self, chat_id: int, amount: float, currency: str, description: str, time_window_hours: int = 24) -> bool:
+        """
+        Проверяет, существует ли такая же операция за последние N часов.
+        Используется для дедупликации банковских сообщений.
+        """
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        sql = """
+            SELECT id FROM operations 
+            WHERE chat_id = ? 
+            AND amount = ? 
+            AND currency = ? 
+            AND description = ? 
+            AND timestamp >= datetime('now', ?)
+            LIMIT 1
+        """
+        # SQLite modifiers: '-24 hours'
+        time_mod = f"-{time_window_hours} hours"
+        
+        cursor.execute(sql, (chat_id, amount, currency, description, time_mod))
+        return cursor.fetchone() is not None
 
         operation_id = cursor.lastrowid
 

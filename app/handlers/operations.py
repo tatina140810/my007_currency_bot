@@ -68,22 +68,33 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info("[AUTO_INCOME] parse_income_notification=None")
             return
 
-        # Личка - группа обязательна
-        if is_private:
-            if not group_name:
-                await message.reply_text(
-                    "❗ В личном чате укажи группу ПЕРЕД сообщением.\n"
-                    "Пример:\n[УЗ] поступили 5000 usdt"
-                )
-                return
-
-            target_chat_id = db.get_chat_id_by_name(group_name)
-            if not target_chat_id:
-                await message.reply_text(f"❌ Группа '{group_name}' не найдена")
-                return
+        # LOGIC CHANGE: REPORT_CHAT_ID is Global Income
+        from app.core.config import REPORT_CHAT_ID
+        
+        target_chat_id = None
+        
+        if chat.id == REPORT_CHAT_ID:
+            # Global Income -> Always write to REPORT_CHAT_ID
+            target_chat_id = REPORT_CHAT_ID
         else:
-            # Группа - пишем в текущий чат
-            target_chat_id = chat.id
+            # Client/Group Income
+            if is_private:
+                if not group_name:
+                    await message.reply_text(
+                        "❗ В личном чате укажи группу ПЕРЕД сообщением.\n"
+                        "Пример:\n[УЗ] поступили 5000 usdt"
+                    )
+                    return
+                target_chat_id = db.get_chat_id_by_name(group_name)
+                if not target_chat_id:
+                    await message.reply_text(f"❌ Группа '{group_name}' не найдена")
+                    return
+            else:
+                # Группа - пишем в текущий чат
+                target_chat_id = chat.id
+
+        # Use Forward Date if available (for forwarded bank messages), else Message Date
+        msg_date = message.forward_date or message.date
 
         await queue_operation(
             target_chat_id,
@@ -91,10 +102,11 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             income["currency"],
             income["amount"],
             income["description"],
+            timestamp=msg_date
         )
 
         logger.info(
-            f"[AUTO_INCOME] queued {income['amount']} {income['currency']} -> chat {target_chat_id}"
+            f"[AUTO_INCOME] queued {income['amount']} {income['currency']} -> chat {target_chat_id} date={msg_date}"
         )
         return
 

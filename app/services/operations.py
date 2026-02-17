@@ -25,12 +25,24 @@ async def process_operation_batch():
         for chat_id, operations in queue_snapshot.items():
             try:
                 for op in operations:
+                    # DEDUPLICATION CHECK for Bank Income
+                    if op["type"] == "Поступление":
+                        if db.is_duplicate_operation(
+                            chat_id, 
+                            op["amount"], 
+                            op["currency"], 
+                            op["description"]
+                        ):
+                            logger.warning(f"Duplicate income skipped: {op['amount']} {op['currency']} in chat {chat_id}")
+                            continue
+
                     db.add_operation(
                         chat_id,
                         op["type"],
                         op["currency"],
                         op["amount"],
                         op["description"],
+                        timestamp=op.get("timestamp")
                     )
                 
                 async with queue_lock:
@@ -52,7 +64,8 @@ async def queue_operation(
     op_type: str, 
     currency: str, 
     amount: float, 
-    description: str = ""
+    description: str = "",
+    timestamp=None
 ):
     """Добавляет операцию в очередь"""
     async with queue_lock:
@@ -61,6 +74,7 @@ async def queue_operation(
             "currency": currency,
             "amount": amount,
             "description": description,
+            "timestamp": timestamp
         })
 
 
