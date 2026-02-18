@@ -801,6 +801,67 @@ class Database:
         conn.commit()
         conn.close()
 
+    def verify_financial_integrity(self) -> List[str]:
+        """
+        Полный аудит целостности данных (Financial-Grade Audit).
+        Проверяет:
+        1. Знаки операций (расходы должны быть отрицательными).
+        2. Соответствие балансов истории операций.
+        Возвращает список проблем (пустой, если все ок).
+        """
+        issues = []
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        # 1. Проверка знаков (Sign Normalization Check)
+        # Расходы должны быть < 0
+        expense_types = ('Выдача наличных', 'Оплата ПП', 'Комиссия', 'Комиссия 1%')
+        cursor.execute(f'''
+            SELECT id, operation_type, amount, currency, chat_id 
+            FROM operations 
+            WHERE operation_type IN {expense_types} AND amount > 0
+        ''')
+        positive_expenses = cursor.fetchall()
+        for row in positive_expenses:
+            issues.append(f"❌ Positive Expense: ID {row['id']} ({row['operation_type']}) {row['amount']} {row['currency']} (Chat {row['chat_id']})")
+
+        # Доходы должны быть > 0 (обычно)
+        # "Взнос наличными", "Поступление"
+        income_types = ('Поступление', 'Взнос наличными')
+        cursor.execute(f'''
+            SELECT id, operation_type, amount, currency, chat_id 
+            FROM operations 
+            WHERE operation_type IN {income_types} AND amount < 0
+        ''')
+        negative_incomes = cursor.fetchall()
+        for row in negative_incomes:
+            issues.append(f"⚠️ Negative Income: ID {row['id']} ({row['operation_type']}) {row['amount']} {row['currency']} (Chat {row['chat_id']})")
+
+        # 2. Проверка согласованности балансов (Balance Consistency Check)
+        # Считаем реальный баланс из операций
+        cursor.execute('''
+            SELECT chat_id, currency, COALESCE(SUM(amount), 0) as real_balance
+            FROM operations
+            GROUP BY chat_id, currency
+        ''')
+        real_balances = {(row['chat_id'], row['currency']): row['real_balance'] for row in cursor.fetchall()}
+
+        # Получаем текущие балансы из таблицы balances
+        cursor.execute('SELECT chat_id, currency, balance FROM balances')
+        stored_balances = {(row['chat_id'], row['currency']): row['balance'] for row in cursor.fetchall()}
+
+        # Сравниваем
+        all_keys = set(real_balances.keys()) | set(stored_balances.keys())
+        for chat_id, currency in all_keys:
+            real = real_balances.get((chat_id, currency), 0.0)
+            stored = stored_balances.get((chat_id, currency), 0.0)
+            
+            if abs(real - stored) > 0.009: # Allow small float diff
+                issues.append(f"❌ Balance Drift: Chat {chat_id} {currency}. Real={real:,.2f}, Stored={stored:,.2f}")
+
+        conn.close()
+        return issues
+
     def get_internal_rate(self, from_curr: str, to_curr: str, group_id: int = 0) -> float | None:
         """
         Получить внутренний курс. 

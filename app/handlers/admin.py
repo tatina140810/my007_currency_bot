@@ -255,3 +255,41 @@ async def cmd_fix_balances(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Error in cmd_fix_balances: {e}")
         await update.message.reply_text(f"❌ Ошибка: {e}")
+
+async def cmd_verify_integrity(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Команда /verify
+    Запускает полный аудит данных.
+    """
+    user = update.effective_user
+    if not is_staff(user.id):
+        return
+
+    await update.message.reply_text("🔎 Запускаю финансовый аудит...")
+    
+    try:
+        issues = db.verify_financial_integrity()
+        
+        if not issues:
+            await update.message.reply_text("✅ Аудит пройден. Ошибок целостности не найдено.\nСуммы операций совпадают с балансами.\nЗнаки операций корректны.")
+        else:
+            # Split messages if too long
+            header = f"⚠️ Найдено проблем: {len(issues)}\n\n"
+            text_chunks = [header]
+            current_chunk = header
+            
+            for issue in issues:
+                line = issue + "\n"
+                if len(current_chunk) + len(line) > 4000:
+                    await update.message.reply_text(current_chunk)
+                    current_chunk = ""
+                current_chunk += line
+                
+            if current_chunk:
+                await update.message.reply_text(current_chunk)
+                
+            await update.message.reply_text("🔧 Для исправления балансов используйте /fix all")
+
+    except Exception as e:
+        logger.error(f"Error during verify: {e}")
+        await update.message.reply_text(f"❌ Ошибка аудита: {e}")
