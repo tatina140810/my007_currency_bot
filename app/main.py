@@ -32,6 +32,7 @@ async def log_all_messages(update: Update, context):
 
         logger.info("=" * 80)
         logger.info(f"📨 ВХОДЯЩЕЕ СООБЩЕНИЕ: '{text}' from user {user_id} in chat {chat_id}")
+        logger.info(f"Entities: {update.message.entities}")
         logger.info("=" * 80)
 
 def main():
@@ -142,6 +143,51 @@ def main():
     logger.info("Бот успешно запущен!")
     print("🚀 БОТ УСПЕШНО ЗАПУЩЕН")
     
+    # Fallback Command Handler (Fix for missing entities)
+    async def fallback_command_handler(update: Update, context):
+        text = update.message.text
+        if not text.startswith("/"):
+            return
+
+        # Simple parsing
+        parts = text.split()
+        cmd_raw = parts[0][1:].lower() # remove /
+        if "@" in cmd_raw:
+            cmd_raw = cmd_raw.split("@")[0]
+        
+        # Args
+        context.args = parts[1:]
+        
+        logger.info(f"Fallback Command Handler: Triggered for '{cmd_raw}'")
+
+        command_map = {
+            "start": start,
+            "help": help_command,
+            "bal": show_balance, "balance": show_balance,
+            "his": show_history, "history": show_history,
+            "del": undo_last_operation,
+            "ex": export_operations, "export": export_operations,
+            "chats": cmd_chats,
+            "allbal": cmd_balances,
+            "rep": cmd_rep,
+            "sum": cmd_sum,
+            "clear": cmd_clear_all,
+            "fix": cmd_fix_balances,
+            "verify": cmd_verify_integrity,
+            "normalize": cmd_normalize_currencies,
+            "cash_report": cmd_cash_report,
+            "set_rate": cmd_set_rate,
+            "cash_exchange": cmd_internal_exchange,
+            "cancel": cancel_any
+        }
+        
+        handler_func = command_map.get(cmd_raw)
+        if handler_func:
+            await handler_func(update, context)
+
+    # Register Fallback Handler in Group 0 (Checked if CommandHandler fails)
+    application.add_handler(MessageHandler(filters.Regex(r"^/"), fallback_command_handler), group=0)
+
     application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=False)
 
 if __name__ == "__main__":

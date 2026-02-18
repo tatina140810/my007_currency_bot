@@ -24,7 +24,9 @@ class Database:
         """Инициализация базы данных"""
         self.db_name = db_name
         self.maintenance_mode = False
+        self.known_chats = set()
         self.create_tables()
+        self.load_known_chats()
 
     def get_connection(self):
         """Создание стабильного подключения к SQLite (safe for asyncio)"""
@@ -61,12 +63,13 @@ class Database:
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS operations (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                chat_id INTEGER NOT NULL,
-                operation_type TEXT NOT NULL,
-                currency TEXT NOT NULL,
-                amount REAL NOT NULL,
+                chat_id INTEGER,
+                operation_type TEXT,
+                currency TEXT,
+                amount REAL,
                 description TEXT,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (chat_id) REFERENCES chats (chat_id)
             )
         ''')
 
@@ -79,8 +82,8 @@ class Database:
         # Таблица балансов с chat_id
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS balances (
-                chat_id INTEGER NOT NULL,
-                currency TEXT NOT NULL,
+                chat_id INTEGER,
+                currency TEXT,
                 balance REAL DEFAULT 0.0,
                 last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (chat_id, currency)
@@ -93,7 +96,7 @@ class Database:
                 chat_id INTEGER PRIMARY KEY,
                 chat_name TEXT,
                 chat_type TEXT,
-                first_interaction DATETIME DEFAULT CURRENT_TIMESTAMP,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 last_interaction DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ''')
@@ -101,11 +104,11 @@ class Database:
         # NEW: Таблица начальных остатков (Cash Evening Report)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS cash_opening_balances (
-                date TEXT NOT NULL,
-                currency TEXT NOT NULL,
-                amount REAL NOT NULL,
+                date TEXT, -- YYYY-MM-DD
+                currency TEXT,
+                amount REAL,
                 group_id INTEGER DEFAULT 0,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (date, currency, group_id)
             )
         ''')
@@ -113,10 +116,10 @@ class Database:
         # NEW: Таблица внутренних курсов (Cash Evening Report)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS internal_rates (
-                group_id INTEGER DEFAULT 0,
-                from_currency TEXT NOT NULL,
-                to_currency TEXT NOT NULL,
-                rate REAL NOT NULL,
+                group_id INTEGER,
+                from_currency TEXT,
+                to_currency TEXT,
+                rate REAL,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (group_id, from_currency, to_currency)
             )
@@ -125,25 +128,48 @@ class Database:
         conn.commit()
         conn.close()
 
+    def load_known_chats(self):
+        """Загрузка известных чатов в кэш"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT chat_id FROM chats")
+            rows = cursor.fetchall()
+            self.known_chats = {row['chat_id'] for row in rows}
+            conn.close()
+            logger.info(f"Loaded {len(self.known_chats)} known chats into cache")
+        except Exception as e:
+            logger.error(f"Error loading known chats: {e}")
+
     def register_chat(self, chat_id: int, chat_name: str = None, chat_type: str = 'private'):
-        """Регистрация чата/группы"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
+        """Регистрация чата/группы (с кэшированием)"""
+        if chat_id in self.known_chats:
+            return
 
-        cursor.execute('''
-            INSERT OR REPLACE INTO chats (chat_id, chat_name, chat_type, last_interaction)
-            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-        ''', (chat_id, chat_name, chat_type))
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
 
-        # Инициализация балансов для всех валют для этого чата
-        for currency in CURRENCIES:
             cursor.execute('''
-                INSERT OR IGNORE INTO balances (chat_id, currency, balance)
-                VALUES (?, ?, 0.0)
-            ''', (chat_id, currency))
+                INSERT OR REPLACE INTO chats (chat_id, chat_name, chat_type, last_interaction)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ''', (chat_id, chat_name, chat_type))
 
-        conn.commit()
-        conn.close()
+            # Инициализация балансов для всех валют для этого чата
+            for currency in CURRENCIES:
+                cursor.execute('''
+                    INSERT OR IGNORE INTO balances (chat_id, currency, balance)
+                    VALUES (?, ?, 0.0)
+                ''', (chat_id, currency))
+
+            conn.commit()
+            conn.close()
+            
+            # Update cache
+            self.known_chats.add(chat_id)
+        except Exception as e:
+            logger.error(f"Error registering chat {chat_id}: {e}")
+            # Don't crash processing
 
     def add_operation(
         self,
