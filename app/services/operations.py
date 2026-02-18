@@ -17,6 +17,12 @@ async def process_operation_batch():
     while True:
         await asyncio.sleep(0.5)
         
+        # Check for maintenance mode
+        if getattr(db, "maintenance_mode", False):
+            # If in maintenance mode, wait and retry
+            await asyncio.sleep(1.0)
+            continue
+        
         async with queue_lock:
             if not operation_queue:
                 continue

@@ -226,8 +226,14 @@ async def cmd_fix_balances(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Check for arguments
     if context.args and context.args[0].lower() == "all":
         logger.info("Запущен пересчет балансов для ВСЕХ чатов")
-        await update.message.reply_text("⏳ Пересчитываю балансы для ВСЕХ чатов...")
+        await update.message.reply_text("⏳ Пересчитываю балансы для ВСЕХ чатов (режим обслуживания включен)...")
+        
         try:
+            db.set_maintenance_mode(True)
+            # Give batcher time to pause
+            import asyncio
+            await asyncio.sleep(1.0)
+            
             db.recalculate_balances(None)
             balance_cache.clear()
             balance_cache_time.clear()  # Clear timestamps too
@@ -235,6 +241,8 @@ async def cmd_fix_balances(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Error in cmd_fix_balances (all): {e}")
             await update.message.reply_text(f"❌ Ошибка: {e}")
+        finally:
+            db.set_maintenance_mode(False)
         return
 
     # Default: Single chat
@@ -306,6 +314,11 @@ async def cmd_normalize_currencies(update: Update, context: ContextTypes.DEFAULT
     await update.message.reply_text("🔄 Запускаю нормализацию валют...")
     
     try:
+        db.set_maintenance_mode(True)
+        # Give batcher time to pause
+        import asyncio
+        await asyncio.sleep(1.0)
+        
         from app.services.parser import normalize_currency
         
         conn = db.get_connection()
@@ -342,3 +355,5 @@ async def cmd_normalize_currencies(update: Update, context: ContextTypes.DEFAULT
     except Exception as e:
         logger.error(f"Error during normalize: {e}")
         await update.message.reply_text(f"❌ Ошибка: {e}")
+    finally:
+        db.set_maintenance_mode(False)

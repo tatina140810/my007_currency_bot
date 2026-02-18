@@ -23,6 +23,7 @@ class Database:
     def __init__(self, db_name: str = DB_PATH):
         """Инициализация базы данных"""
         self.db_name = db_name
+        self.maintenance_mode = False
         self.create_tables()
 
     def get_connection(self):
@@ -39,9 +40,17 @@ class Database:
         # ⚠️ PRAGMA — строго в таком порядке
         conn.execute("PRAGMA journal_mode=WAL;")
         conn.execute("PRAGMA synchronous=NORMAL;")
-        conn.execute("PRAGMA busy_timeout=8000;")
+        conn.execute("PRAGMA busy_timeout=10000;")
 
         return conn
+
+    def set_maintenance_mode(self, enabled: bool):
+        """Включает/выключает режим обслуживания (пауза батчера)"""
+        self.maintenance_mode = enabled
+        if enabled:
+            logger.warning("🚧 MAINTENANCE MODE ENABLED (Batcher paused)")
+        else:
+            logger.info("🟢 MAINTENANCE MODE DISABLED (Batcher resumed)")
 
     def create_tables(self):
         """Создание таблиц в БД"""
