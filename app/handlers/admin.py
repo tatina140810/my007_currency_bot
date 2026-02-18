@@ -213,8 +213,9 @@ async def cmd_clear_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_fix_balances(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
-    Принудительный пересчет балансов для текущего чата.
-    Команда: /fix
+    Принудительный пересчет балансов.
+    Команда: /fix - для текущего чата
+    Команда: /fix all - для всех чатов
     """
     user = update.effective_user
     chat = update.effective_chat
@@ -222,6 +223,21 @@ async def cmd_fix_balances(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_staff(user.id):
         return
 
+    # Check for arguments
+    if context.args and context.args[0].lower() == "all":
+        logger.info("Запущен пересчет балансов для ВСЕХ чатов")
+        await update.message.reply_text("⏳ Пересчитываю балансы для ВСЕХ чатов...")
+        try:
+            db.recalculate_balances(None)
+            balance_cache.clear()
+            balance_cache_time.clear()  # Clear timestamps too
+            await update.message.reply_text("✅ Все балансы успешно пересчитаны.")
+        except Exception as e:
+            logger.error(f"Error in cmd_fix_balances (all): {e}")
+            await update.message.reply_text(f"❌ Ошибка: {e}")
+        return
+
+    # Default: Single chat
     logger.info(f"Запущен пересчет балансов для чата {chat.id} ({chat.title})")
     await update.message.reply_text("⏳ Пересчитываю балансы...")
     
