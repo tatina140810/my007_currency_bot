@@ -121,7 +121,7 @@ def get_report_data(report_date, group_id: int = 0) -> Dict[str, Any]:
                 data[currency]["withdraw"] += abs(amount)
 
         # 3. EXCHANGES
-        elif op_type in ("Internal Exchange", "Конвертация"):
+        elif op_type in ("Internal Exchange", "Конвертация", "Manual FX"):
             if amount < 0:
                 if currency in data:
                     data[currency]["exchange_out"] += abs(amount)
