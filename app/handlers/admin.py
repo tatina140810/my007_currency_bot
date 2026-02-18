@@ -293,3 +293,52 @@ async def cmd_verify_integrity(update: Update, context: ContextTypes.DEFAULT_TYP
     except Exception as e:
         logger.error(f"Error during verify: {e}")
         await update.message.reply_text(f"❌ Ошибка аудита: {e}")
+
+async def cmd_normalize_currencies(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Команда /normalize
+    Миграция данных: приводит все валюты к каноническому виду.
+    """
+    user = update.effective_user
+    if not is_staff(user.id):
+        return
+
+    await update.message.reply_text("🔄 Запускаю нормализацию валют...")
+    
+    try:
+        from app.services.parser import normalize_currency
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT id, currency FROM operations")
+        rows = cursor.fetchall()
+        
+        updated_count = 0
+        for row in rows:
+            op_id = row["id"]
+            curr_raw = row["currency"]
+            curr_norm = normalize_currency(curr_raw)
+            
+            if curr_raw != curr_norm:
+                cursor.execute(
+                    "UPDATE operations SET currency = ? WHERE id = ?",
+                    (curr_norm, op_id)
+                )
+                updated_count += 1
+        
+        conn.commit()
+        conn.close()
+        
+        if updated_count > 0:
+            await update.message.reply_text(f"✅ Нормализовано {updated_count} операций.\n⏳ Пересчитываю балансы...")
+            db.recalculate_balances(None)
+            balance_cache.clear()
+            balance_cache_time.clear()
+            await update.message.reply_text("✅ Балансы обновлены.")
+        else:
+            await update.message.reply_text("✅ Все валюты уже в норме. Изменений нет.")
+
+    except Exception as e:
+        logger.error(f"Error during normalize: {e}")
+        await update.message.reply_text(f"❌ Ошибка: {e}")

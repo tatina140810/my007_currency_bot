@@ -119,13 +119,15 @@ def normalize_currency(curr: str) -> str:
 
     curr_map = {
         "руб": "RUB", "₽": "RUB", "рублей": "RUB", "rub": "RUB", "рубля": "RUB", "рубли": "RUB", "rubles": "RUB",
-        "сом": "KGS", "сомов": "KGS", "kgs": "KGS",
+        "r": "RUB", "р": "RUB",
+        "сом": "KGS", "сомов": "KGS", "kgs": "KGS", "c": "KGS", "с": "KGS",
         "usd": "USD", "долл": "USD", "$": "USD", "дол": "USD",
         "доллар": "USD", "долларов": "USD", "долларах": "USD",
         "eur": "EUR", "€": "EUR", "ев": "EUR", "евро": "EUR", "euro": "EUR",
         "kzt": "KZT", "тенге": "KZT",
         "cny": "CNY", "yuan": "CNY", "¥": "CNY",
         "юан": "CNY", "юань": "CNY", "юаней": "CNY", "юани": "CNY", "юаня": "CNY",
+        "ю": "CNY",
         "aed": "AED", "дирхам": "AED", "дирхамов": "AED", "дир": "AED", "dirham": "AED", "dirhams": "AED",
     }
 

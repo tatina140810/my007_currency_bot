@@ -18,7 +18,7 @@ from app.db.instance import db
 from app.handlers.base import start, help_command, cancel_any, error_handler
 from app.handlers.reports import cmd_rep, show_balance, show_history, export_operations, cmd_sum, cmd_balances, general_button_callback
 from app.handlers.operations import handle_text
-from app.handlers.admin import undo_last_operation, undo_select_operation, cancel_undo, handle_delete_password, cmd_chats, cmd_clear_all, cmd_fix_balances, cmd_verify_integrity
+from app.handlers.admin import undo_last_operation, undo_select_operation, cancel_undo, handle_delete_password, cmd_chats, cmd_clear_all, cmd_fix_balances, cmd_verify_integrity, cmd_normalize_currencies
 
 # Глобальная переменная для задачи
 batch_task = None
@@ -92,6 +92,8 @@ def main():
     application.add_handler(CommandHandler("clear", cmd_clear_all)) # /clear all handled inside? no, cmd_clear_all checks logic
     application.add_handler(CommandHandler("fix", cmd_fix_balances))
     application.add_handler(CommandHandler("verify", cmd_verify_integrity))
+    application.add_handler(CommandHandler("normalize", cmd_normalize_currencies))
+
 
 
     # Handlers from app/handlers/cash.py
