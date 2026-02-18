@@ -31,7 +31,7 @@ class Database:
             self.db_name,
             timeout=30,
             check_same_thread=False,
-            isolation_level=None,   # автокоммит, снижает lock'и
+            # isolation_level=None,  # REMOVED: Enable explicit transactions for atomicity
         )
 
         conn.row_factory = sqlite3.Row

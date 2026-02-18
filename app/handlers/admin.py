@@ -210,3 +210,32 @@ async def cmd_clear_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
     balance_cache.clear()
     balance_cache_time.clear()
     await message.reply_text("База очищена.")
+
+async def cmd_fix_balances(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Принудительный пересчет балансов для текущего чата.
+    Команда: /fix
+    """
+    user = update.effective_user
+    chat = update.effective_chat
+    
+    if not is_staff(user.id):
+        return
+
+    logger.info(f"Запущен пересчет балансов для чата {chat.id} ({chat.title})")
+    await update.message.reply_text("⏳ Пересчитываю балансы...")
+    
+    try:
+        db.recalculate_balances(chat.id)
+        invalidate_balance_cache(chat.id)
+        
+        stats = db.get_statistics(chat.id)
+        lines = []
+        for curr, data in stats.items():
+            lines.append(f"{curr}: {data['balance']:,.2f}")
+            
+        text = "✅ Балансы пересчитаны:\n" + ("\n".join(lines) if lines else "Нет данных")
+        await update.message.reply_text(text)
+    except Exception as e:
+        logger.error(f"Error in cmd_fix_balances: {e}")
+        await update.message.reply_text(f"❌ Ошибка: {e}")
