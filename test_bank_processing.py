@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import MagicMock, AsyncMock, patch
-from datetime import datetime
+from datetime import datetime, timezone
 import sys
 import os
 
@@ -8,13 +8,15 @@ sys.path.append(os.getcwd())
 
 from app.handlers.operations import handle_text
 from app.core.config import REPORT_CHAT_ID
+from app.core.constants import KG_TZ
 
 class TestBankProcessing(unittest.IsolatedAsyncioTestCase):
     async def test_bank_income_report_chat(self):
         # MESSAGE from REPORT_CHAT_ID
         # should use message.date (no forward)
         
-        fixed_date = datetime(2025, 5, 20, 10, 0, 0)
+        # Use UTC input to simulate Telegram API
+        fixed_date = datetime(2025, 5, 20, 10, 0, 0, tzinfo=timezone.utc)
         
         update = MagicMock()
         update.effective_chat.id = REPORT_CHAT_ID
@@ -44,22 +46,24 @@ class TestBankProcessing(unittest.IsolatedAsyncioTestCase):
             
             await handle_text(update, MagicMock())
             
-            # Verify queue_operation called with correct ID and TIMESTAMP
+            # Verify queue_operation called with correct ID and TIMESTAMP (converted to KG_TZ)
             mock_queue.assert_called_once()
             args = mock_queue.call_args 
             call_args = args[0]
             call_kwargs = args[1]
             
+            expected_date = fixed_date.astimezone(KG_TZ)
+            
             self.assertEqual(call_args[0], REPORT_CHAT_ID)
             self.assertEqual(call_args[1], "Поступление")
-            self.assertEqual(call_kwargs.get("timestamp"), fixed_date)
+            self.assertEqual(call_kwargs.get("timestamp"), expected_date)
 
     async def test_forwarded_bank_message(self):
         # MESSAGE Forwarded to Group
         # Should use forward_origin.date (PTB v21 logic)
         
-        original_date = datetime(2025, 1, 1, 12, 0, 0)
-        forward_date = datetime(2025, 1, 2, 12, 0, 0)
+        original_date = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        forward_date = datetime(2025, 1, 2, 12, 0, 0, tzinfo=timezone.utc)
         
         update = MagicMock()
         update.effective_chat.id = 555 
@@ -91,11 +95,13 @@ class TestBankProcessing(unittest.IsolatedAsyncioTestCase):
             
             await handle_text(update, MagicMock())
             
-            # Verify queue_operation called with original_date
+            # Verify queue_operation called with original_date (converted)
             mock_queue.assert_called_once()  # Ensure called first
             args = mock_queue.call_args 
             call_kwargs = args[1]
-            self.assertEqual(call_kwargs.get("timestamp"), original_date)
+            
+            expected_date = original_date.astimezone(KG_TZ)
+            self.assertEqual(call_kwargs.get("timestamp"), expected_date)
 
     async def test_bank_income_other_chat_private(self):
         # MESSAGE from Private Chat (NOT REPORT_CHAT_ID)

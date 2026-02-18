@@ -102,6 +102,19 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif getattr(message, "forward_date", None):
              msg_date = message.forward_date
 
+        # Use Forward Date if available (for forwarded bank messages), else Message Date
+        # PTB v20+ uses forward_origin, older uses forward_date
+        msg_date = message.date
+        
+        if getattr(message, "forward_origin", None):
+             msg_date = message.forward_origin.date
+        elif getattr(message, "forward_date", None):
+             msg_date = message.forward_date
+
+        # FIX: Convert to KG_TZ (Asia/Bishkek) to ensure correct date (avoid UTC prev day issue)
+        from app.core.constants import KG_TZ
+        msg_date = msg_date.astimezone(KG_TZ)
+
         await queue_operation(
             target_chat_id,
             "Поступление",
