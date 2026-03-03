@@ -358,42 +358,55 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     chat = update.effective_chat
     
+    logger.info(f"[handle_document] Triggered in chat {chat.id if chat else 'None'} from user {user.id if user else 'None'}")
+    
     if not message or not user or not chat:
+        logger.info("[handle_document] Missing message, user, or chat. Returning.")
         return
         
     if user.is_bot:
+        logger.info("[handle_document] User is bot. Returning.")
         return
         
-    staff, is_admin = is_staff(user.id)
+    staff = is_staff(user.id)
     if not staff:
+        logger.info(f"[handle_document] User {user.id} is not staff. Returning.")
         return  # Only staff can parse documents
         
     file_id = None
     if message.photo:
+        logger.info("[handle_document] Found photo.")
         # Get the highest resolution photo
         file_id = message.photo[-1].file_id
     elif message.document:
         # Check MIME type roughly
         mime = message.document.mime_type or ""
+        logger.info(f"[handle_document] Found document. MIME: {mime}")
         if "image" not in mime and "pdf" not in mime:
+            logger.info(f"[handle_document] Ignored document due to MIME type (not image/pdf).")
             return # Ignore non-visual documents
         file_id = message.document.file_id
         
     if not file_id:
+        logger.info("[handle_document] No file_id extracted. Returning.")
         return
         
     try:
+        logger.info(f"[handle_document] Downloading file {file_id}")
         # Download file
         new_file = await context.bot.get_file(file_id)
         # We need it as bytes
         import io
         file_bytes = await new_file.download_as_bytearray()
         
+        logger.info(f"[handle_document] Downloaded {len(file_bytes)} bytes. Running OCR...")
         # 1. Run OCR
         from app.services.ocr import run_ocr_from_image_bytes
         text = run_ocr_from_image_bytes(bytes(file_bytes), use_easyocr=True)
         
+        logger.info(f"[handle_document] OCR returned {len(text)} chars.")
         if len(text) < 10:
+            logger.info("[handle_document] OCR text too short (spam). Ignoring.")
             return # Too short, probably an irrelevant photo
             
         # 2. Parse with AI Swift Parser
