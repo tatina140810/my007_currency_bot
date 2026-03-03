@@ -383,9 +383,6 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
         
     try:
-        # Feedback to user
-        status_msg = await message.reply_text("⏳ Чтение документа (OCR)...")
-        
         # Download file
         new_file = await context.bot.get_file(file_id)
         # We need it as bytes
@@ -397,11 +394,9 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = run_ocr_from_image_bytes(bytes(file_bytes), use_easyocr=True)
         
         if len(text) < 10:
-            await status_msg.delete()
             return # Too short, probably an irrelevant photo
             
         # 2. Parse with AI Swift Parser
-        await status_msg.edit_text("🧠 ИИ анализирует документ...")
         from app.services.ai_swift_parser import parse_swift_document
         
         parsed_result = await parse_swift_document(text)
@@ -409,7 +404,6 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not parsed_result or not parsed_result.get("documents"):
             # ANTI-SPAM FILTER: It's not a SWIFT or Financial doc
             logger.info(f"AI filtered out image gracefully (Anti-Spam). Chat: {chat.id}")
-            await status_msg.delete()
             return
             
         docs = parsed_result["documents"]
@@ -428,11 +422,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
             messages.append(msg)
             
         summary = "\n---\n".join(messages)
-        await status_msg.edit_text(summary, parse_mode="Markdown")
+        await message.reply_text(summary, parse_mode="Markdown")
         
     except Exception as e:
         logger.error(f"Error handling document: {e}")
-        try:
-            await status_msg.delete()
-        except:
-            pass
