@@ -158,57 +158,101 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     manual = parse_manual_operation_line(clean_text)
     
-    if not manual:
-        # Fallback to AI Parsing if strict regex failed
-        ai_parsed = await parse_with_ai(clean_text)
-        if not ai_parsed:
-            return
-            
-        # Reconstruct "manual" dict from AI result
-        manual = {
-            "type": ai_parsed["type"],
-            "currency": ai_parsed["currency"],
-            "amount": ai_parsed["amount"],
-            "description": ai_parsed.get("description", ""),
-        }
-        group_name = ai_parsed.get("group")
-        
-        # Add AI indicator to description
-        manual["description"] = f"[AI] {manual['description']}".strip()
-        
-        await message.reply_text(
-            f"🤖 *Распознано ИИ:*\n"
-            f"Тип: `{manual['type']}`\n"
-            f"Сумма: `{manual['amount']} {manual['currency']}`\n"
-            f"Основание: _{manual['description']}_",
-            parse_mode="Markdown"
-        )
+    if manual:
+        # Standard strict parsing flow
+        try:
+            target_chat_id = resolve_target_chat_id(
+                chat=chat,
+                is_private=is_private,
+                group_from_manual=manual.get("group"),
+            )
+        except ValueError as e:
+            # SPECIAL CASE: [internal_report] commands allow defaulting to current chat (DM)
+            is_internal = False
+            if manual["type"] == "Manual Buy FX":
+                is_internal = True
+            elif manual["type"] == "Выдача наличных" and manual.get("description") == "Выдача наличных (internal_report)":
+                is_internal = True
+                
+            if is_internal and is_private and not manual.get("group"):
+                target_chat_id = chat.id
+            else:
+                await message.reply_text(str(e))
+                return
 
-    try:
-        target_chat_id = resolve_target_chat_id(
-            chat=chat,
-            is_private=is_private,
-            group_from_manual=group_name,
-        )
-    except ValueError as e:
-        # SPECIAL CASE: [internal_report] commands allow defaulting to current chat (DM)
-        # if no group is specified.
-        is_internal = False
-        if manual["type"] == "Manual Buy FX":
-            is_internal = True
-        elif manual["type"] == "Выдача наличных" and manual.get("description") == "Выдача наличных (internal_report)":
-            is_internal = True
-            
-        if is_internal and is_private and not group_name:
-            target_chat_id = chat.id
-        else:
-            await message.reply_text(str(e))
-            return
+        op_type = manual["type"]
+        amount = manual["amount"]
+        currency = manual["currency"]
+        desc = manual.get("description", "")
+        group_name = manual.get("group")
+    
+    else:
+        # ----------------------------------------------------------------
+        # 🤖 AI PARSING FALLBACK (Phase 2: Lists & Context)
+        # ----------------------------------------------------------------
+        reply_context = None
+        if message.reply_to_message and message.reply_to_message.text:
+            reply_context = message.reply_to_message.text
 
-    op_type = manual["type"]
-    amount = manual["amount"]
-    currency = manual["currency"]
-    desc = manual.get("description", "")
+        ai_parsed_list = await parse_with_ai(clean_text, reply_context)
+        
+        if not ai_parsed_list:
+            return  # Not recognized mathematically or AI failed
+            
+        success_messages = []
+        
+        for ai_op in ai_parsed_list:
+            op_type = ai_op["type"]
+            currency = ai_op["currency"]
+            amount = ai_op["amount"]
+            desc = f"[AI] {ai_op.get('description', '')}".strip()
+            group_name = ai_op.get("group")
+            
+            # 1. Enforce Privacy Rule for 'Оплата ПП'
+            if op_type == "Оплата ПП" and not is_private:
+                logger.warning(f"AI attempted to parse 'Оплата ПП' in group chat {chat.id}. Ignored for security.")
+                continue # Skip processing this operation
+            
+            # 2. Resolve target chat
+            try:
+                target_chat_id = resolve_target_chat_id(
+                    chat=chat,
+                    is_private=is_private,
+                    group_from_manual=group_name,
+                )
+            except ValueError as e:
+                # If AI fails to determine chat context, we must skip this operation
+                await message.reply_text(f"⚠️ ИИ-ошибка для {op_type}: {str(e)}")
+                continue
+
+            # 3. Queue the operation
+            # Handle Internal Exchange sign rules specifically
+            save_amount = amount
+            if op_type == "Internal Exchange" and currency == "RUB":
+                save_amount = -amount # RUB goes out when buying foreign currency
+            
+            # Standard Expense rules
+            if op_type in ["Выдача наличных", "Оплата ПП", "Комиссия 1%", "Комиссия банка", "Конвертация"]:
+                save_amount = -amount
+                
+            await queue_operation(
+                target_chat_id,
+                op_type,
+                currency,
+                save_amount,
+                desc,
+            )
+            
+            success_messages.append(f"Тип: `{op_type}`\nСумма: `{amount} {currency}`\nОсн: _{desc}_")
+
+        if success_messages:
+            summary = "\n---\n".join(success_messages)
+            await message.reply_text(
+                f"🤖 *Распознано ИИ:*\n{summary}",
+                parse_mode="Markdown"
+            )
+        return
+        # EOF AI PARSER
 
     # --------------------
     # MANUAL BUY FX (Internal Report)
