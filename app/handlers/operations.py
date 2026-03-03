@@ -437,14 +437,10 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # 3. Format response
         messages = []
         for doc in docs:
-            lines = ["🏦 **SWIFT / ISO 20022 Распознан**"]
+            lines = []
             
             def is_valid(val):
                 return val and str(val).strip().lower() not in ["none", "null", ""]
-
-            doc_id = doc.get('document_id')
-            if is_valid(doc_id):
-                lines.append(f"ID: `{doc_id}`")
                 
             sender = doc.get('sender_name')
             country = doc.get('sender_country')
