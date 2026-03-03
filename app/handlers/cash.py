@@ -37,9 +37,17 @@ async def cmd_cash_open(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Check if balances already exist for today?
     # Requirement: "Opening balance can be entered only once per date... allow overwrite only via /cash_open overwrite"
     
-    args = context.args
+    args = [arg.lower() for arg in context.args] if context.args else []
+    
+    # If the user used "/cash" (or /cash@bot), require "open" in arguments
+    command = update.message.text.split()[0].lower() if update.message and update.message.text else ""
+    if command.startswith("/cash") and not command.startswith("/cash_open"):
+        if "open" not in args:
+            await update.message.reply_text("Для установки начального остатка используйте команду: `/cash open` или `/cash_open`", parse_mode="Markdown")
+            return ConversationHandler.END
+
     overwrite = False
-    if args and "overwrite" in args[0].lower():
+    if "overwrite" in args:
         overwrite = True
 
     today = datetime.now().strftime("%Y-%m-%d")
@@ -408,7 +416,10 @@ async def cmd_internal_exchange(update: Update, context: ContextTypes.DEFAULT_TY
 
 # Conversation handler definition
 cash_open_handler = ConversationHandler(
-    entry_points=[CommandHandler("cash_open", cmd_cash_open)],
+    entry_points=[
+        CommandHandler("cash_open", cmd_cash_open),
+        CommandHandler("cash", cmd_cash_open)
+    ],
     states={
         WAITING_FOR_BALANCES: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_opening_balances_input)],
     },

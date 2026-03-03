@@ -47,11 +47,12 @@ def main():
     import sys
     import os
     
-    lock_file = open("bot.lock", "w")
+    global lock_file
+    lock_file = open("/tmp/my007_bot.lock", "w")
     try:
         fcntl.lockf(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except IOError:
-        print("❌ Another instance is already running. Exiting.")
+        print("❌ Another instance is already running (check /tmp/my007_bot.lock). Exiting.")
         sys.exit(1)
     # ----------------------------
 
