@@ -6,6 +6,9 @@ import os
 # ВАЖНО: Замените на токен вашего бота от @BotFather
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8555695431:AAF69crWuv8krwg95uCsjR2bYuYAv9ccwAw")
 
+# OpenAI API Key для ИИ-разбора текста
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+
 # Поддерживаемые валюты
 CURRENCIES = ["USD", "EUR", "RUB", "CNY", "AED", "KGS", "USDT", "KZT"]
 

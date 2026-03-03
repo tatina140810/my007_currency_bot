@@ -8,6 +8,7 @@ from app.services.parser import (
     extract_group_tag, normalize_group_name, looks_like_bank_income,
     parse_income_notification, parse_bulk_pp_payments, parse_manual_operation_line
 )
+from app.services.ai_parser import parse_with_ai
 from app.services.operations import queue_operation, resolve_target_chat_id
 from app.services.math import compute_conversion_to_amount
 
@@ -150,14 +151,38 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
     # =====================================================
-    # 4️⃣ РУЧНЫЕ ОПЕРАЦИИ
+    # 4️⃣ РУЧНЫЕ ОПЕРАЦИИ (Regular + AI Fallback)
     # =====================================================
     if not staff:
         return
 
     manual = parse_manual_operation_line(clean_text)
+    
     if not manual:
-        return
+        # Fallback to AI Parsing if strict regex failed
+        ai_parsed = await parse_with_ai(clean_text)
+        if not ai_parsed:
+            return
+            
+        # Reconstruct "manual" dict from AI result
+        manual = {
+            "type": ai_parsed["type"],
+            "currency": ai_parsed["currency"],
+            "amount": ai_parsed["amount"],
+            "description": ai_parsed.get("description", ""),
+        }
+        group_name = ai_parsed.get("group")
+        
+        # Add AI indicator to description
+        manual["description"] = f"[AI] {manual['description']}".strip()
+        
+        await message.reply_text(
+            f"🤖 *Распознано ИИ:*\n"
+            f"Тип: `{manual['type']}`\n"
+            f"Сумма: `{manual['amount']} {manual['currency']}`\n"
+            f"Основание: _{manual['description']}_",
+            parse_mode="Markdown"
+        )
 
     try:
         target_chat_id = resolve_target_chat_id(
