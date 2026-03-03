@@ -1,4 +1,6 @@
 python-telegram-bot==21.0.1
 openpyxl==3.1.2
 Pillow
-pytesseractopenai
+pytesseract
+openai
+PyMuPDF

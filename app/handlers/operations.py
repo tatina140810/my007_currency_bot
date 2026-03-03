@@ -395,24 +395,37 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"[handle_document] Downloading file {file_id}")
         # Download file
         new_file = await context.bot.get_file(file_id)
-        # We need it as bytes
+        
         import io
         file_bytes = await new_file.download_as_bytearray()
         
-        logger.info(f"[handle_document] Downloaded {len(file_bytes)} bytes. Running OCR...")
-        # 1. Run OCR
-        from app.services.ocr import run_ocr_from_image_bytes
-        text = run_ocr_from_image_bytes(bytes(file_bytes), use_easyocr=True)
+        # Determine MIME type and prep bytes
+        mime_type = "image/jpeg"
+        is_pdf = False
         
-        logger.info(f"[handle_document] OCR returned {len(text)} chars.")
-        if len(text) < 10:
-            logger.info("[handle_document] OCR text too short (spam). Ignoring.")
-            return # Too short, probably an irrelevant photo
+        if message.document:
+            doc_mime = message.document.mime_type
+            if doc_mime == "application/pdf":
+                is_pdf = True
+            elif doc_mime in ["image/png", "image/jpeg", "image/jpg"]:
+                mime_type = doc_mime
+                
+        # If PDF, convert first page to JPEG
+        if is_pdf:
+            import fitz  # PyMuPDF
+            logger.info("[handle_document] Converting PDF to image...")
+            pdf_document = fitz.open(stream=bytes(file_bytes), filetype="pdf")
+            first_page = pdf_document.load_page(0)
+            pix = first_page.get_pixmap()
+            file_bytes = pix.tobytes("jpeg")
+            pdf_document.close()
+            mime_type = "image/jpeg"
+            logger.info(f"[handle_document] PDF converted. New size: {len(file_bytes)} bytes")
             
-        # 2. Parse with AI Swift Parser
-        from app.services.ai_swift_parser import parse_swift_document
+        # 1. Parse with AI Vision Parser
+        from app.services.ai_swift_parser import parse_swift_document_from_image
         
-        parsed_result = await parse_swift_document(text)
+        parsed_result = await parse_swift_document_from_image(bytes(file_bytes), mime_type=mime_type)
         
         if not parsed_result or not parsed_result.get("documents"):
             # ANTI-SPAM FILTER: It's not a SWIFT or Financial doc
