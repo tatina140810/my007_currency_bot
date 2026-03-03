@@ -424,15 +424,37 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # 3. Format response
         messages = []
         for doc in docs:
-            msg = (
-                f"🏦 **SWIFT / ISO 20022 Распознан**\n"
-                f"ID: `{doc.get('document_id', 'Н/Д')}`\n"
-                f"Отправитель: {doc.get('sender_name', 'Н/Д')} {doc.get('sender_country', '')}\n"
-                f"Сумма: `{doc.get('amount')} {doc.get('currency')}`\n"
-                f"UETR: `{doc.get('uetr', 'Н/Д')}`\n"
-                f"Назначение: _{doc.get('payment_for', 'Н/Д')}_"
-            )
-            messages.append(msg)
+            lines = ["🏦 **SWIFT / ISO 20022 Распознан**"]
+            
+            def is_valid(val):
+                return val and str(val).strip().lower() not in ["none", "null", ""]
+
+            doc_id = doc.get('document_id')
+            if is_valid(doc_id):
+                lines.append(f"ID: `{doc_id}`")
+                
+            sender = doc.get('sender_name')
+            country = doc.get('sender_country')
+            sender_parts = [str(p) for p in [sender, country] if is_valid(p)]
+            if sender_parts:
+                lines.append(f"Отправитель: {' '.join(sender_parts)}")
+                
+            amt = doc.get('amount')
+            curr = doc.get('currency')
+            if is_valid(amt) or is_valid(curr):
+                amt_str = str(amt) if is_valid(amt) else ""
+                curr_str = str(curr) if is_valid(curr) else ""
+                lines.append(f"Сумма: `{amt_str} {curr_str}`".strip())
+                
+            uetr = doc.get('uetr')
+            if is_valid(uetr):
+                lines.append(f"UETR: `{uetr}`")
+                
+            payment_for = doc.get('payment_for')
+            if is_valid(payment_for):
+                lines.append(f"Назначение: _{payment_for}_")
+                
+            messages.append("\n".join(lines))
             
         summary = "\n---\n".join(messages)
         await message.reply_text(summary, parse_mode="Markdown")
