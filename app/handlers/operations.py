@@ -455,10 +455,6 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 curr_str = str(curr) if is_valid(curr) else ""
                 lines.append(f"Сумма: `{amt_str} {curr_str}`".strip())
                 
-            uetr = doc.get('uetr')
-            if is_valid(uetr):
-                lines.append(f"UETR: `{uetr}`")
-                
             payment_for = doc.get('payment_for')
             if is_valid(payment_for):
                 lines.append(f"Назначение: _{payment_for}_")
