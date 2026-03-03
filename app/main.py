@@ -25,15 +25,25 @@ batch_task = None
 
 async def log_all_messages(update: Update, context):
     """Логирование всех сообщений"""
-    if update.message and update.message.text:
-        text = update.message.text
-        user_id = update.effective_user.id if update.effective_user else "unknown"
-        chat_id = update.effective_chat.id if update.effective_chat else "unknown"
+    if not update.message:
+        return
+        
+    user_id = update.effective_user.id if update.effective_user else "unknown"
+    chat_id = update.effective_chat.id if update.effective_chat else "unknown"
 
-        logger.info("=" * 80)
+    logger.info("=" * 80)
+    if update.message.text:
+        text = update.message.text
         logger.info(f"📨 ВХОДЯЩЕЕ СООБЩЕНИЕ: '{text}' from user {user_id} in chat {chat_id}")
         logger.info(f"Entities: {update.message.entities}")
-        logger.info("=" * 80)
+    elif update.message.photo:
+        caption = update.message.caption or ""
+        logger.info(f"📸 ВХОДЯЩЕЕ ФОТО: Caption '{caption}' from user {user_id} in chat {chat_id}")
+    elif update.message.document:
+        caption = update.message.caption or ""
+        mime = update.message.document.mime_type
+        logger.info(f"📄 ВХОДЯЩИЙ ДОКУМЕНТ: MIME={mime} Caption '{caption}' from user {user_id} in chat {chat_id}")
+    logger.info("=" * 80)
 
 def main():
     """Главная функция"""
