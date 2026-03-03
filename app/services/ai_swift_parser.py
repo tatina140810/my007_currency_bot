@@ -18,27 +18,25 @@ async def parse_swift_document(text: str) -> dict | None:
         return None
 
     system_prompt = """
-    You are a SWIFT payment document parser.
-    The input is OCR text extracted from scanned SWIFT / ISO 20022 documents.
+    You are a financial document parser specializing in SWIFT and ISO 20022 payment documents.
+    The input is raw OCR text extracted from a scanned document. The text may contain heavy OCR errors, typos, misaligned columns, or missing characters.
     The document may span multiple pages. There may be multiple <Document> blocks.
 
     Your tasks:
-    1. Detect each complete SWIFT document.
+    1. Determine if the document represents a payment order, SWIFT transfer, or ISO 20022 message. Look for keywords like SWIFT, PAYMENT, TRANSFER, DEBIT, CREDIT, AMOUNT, CURRENCY, BIC, UETR, etc. Even if spelled incorrectly, try to recognize them.
     2. Extract the following fields:
-       - document_id (MsgId or PrintRef)
-       - sender_name (Dbtr/Nm)
-       - sender_country (Dbtr/PstlAdr/Ctry if available)
-       - amount (IntrBkSttlmAmt value)
-       - currency (IntrBkSttlmAmt Ccy attribute)
-       - uetr
-       - payment_for (RmtInf or Ustrd field)
-    3. If multiple documents exist, return an array of objects.
-    4. Return ONLY valid JSON.
-    5. If a field is missing, return null.
-    6. Do not hallucinate.
+       - document_id: Message ID, PrintRef, Reference, or UETR. Look for any unique alphanumeric identifier.
+       - sender_name: Name of the debtor or sender (Dbtr/Nm or Ordering Customer).
+       - sender_country: Country of the sender (Dbtr/PstlAdr/Ctry).
+       - amount: The transaction amount (IntrBkSttlmAmt or equivalent).
+       - currency: The transaction currency (e.g., USD, EUR, RUB, KZT).
+       - uetr: The 36-character UETR code if present.
+       - payment_for: Remittance Information, Details of Payment (RmtInf or Ustrd field).
+    3. If you find data resembling a transfer, return an array of objects in the `documents` list.
+    4. Return ONLY valid JSON. If a field cannot be found, return null. Do not hallucinate data that isn't roughly supported by the text.
     
     IMPORTANT FILTRATION RULE:
-    If the text clearly does NOT contain any SWIFT, XML, or ISO 20022 payment data (e.g. it's a random photo, meme, or chat screenshot), you MUST return an empty array for documents: { "documents": [] }.
+    Only reject the document (returning an empty array `{"documents": []}`) if it is absolutely clearly NOT a financial document (e.g., a photo of a cat, a random chat screenshot without numbers/currencies, or a food menu). If it looks like a bank statement, receipt, or SWIFT transfer even with heavy OCR damage, ATTEMPT TO EXTRACT the amount, currency, and sender.
     
     Output format:
     {
