@@ -459,10 +459,15 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if is_valid(payment_for):
                 lines.append(f"Назначение: _{payment_for}_")
                 
-            messages.append("\n".join(lines))
-            
         summary = "\n---\n".join(messages)
-        await message.reply_text(summary, parse_mode="Markdown")
+        
+        # Determine if we should send a message
+        # User requested: "эти сообщения которые считывает с pdf не нужно присылать в группы"
+        # If it's a group and it's a PDF, stay silent. Otherwise, reply.
+        if is_pdf and chat.type in ["group", "supergroup"]:
+            logger.info("Successfully parsed PDF SWIFT document in group, remaining silent per request.")
+        else:
+            await message.reply_text(summary, parse_mode="Markdown")
         
     except Exception as e:
         logger.error(f"Error handling document: {e}")

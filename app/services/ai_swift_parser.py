@@ -31,7 +31,7 @@ async def parse_swift_document_from_image(image_bytes: bytes, mime_type: str = "
        - sender_country: Country of the sender (Dbtr/PstlAdr/Ctry).
        - amount: The transaction amount. Remove spaces and format as a plain number (e.g. 1000.50).
        - currency: The transaction currency (e.g., USD, EUR, RUB, KZT).
-       - uetr: The 36-character UETR code if present.
+       - uetr: The Unique End-to-end Transaction Reference. This is strictly a 36-character string in the format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx. Look carefully for this exact format. If not found, return null.
        - payment_for: Remittance Information, Details of Payment (RmtInf or Ustrd field).
     3. If you find data resembling a transfer, return an array of objects in the `documents` list.
     4. Return ONLY valid JSON. If a field cannot be found, return null. Do not hallucinate data.
