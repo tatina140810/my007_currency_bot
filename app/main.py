@@ -17,7 +17,7 @@ from app.db.instance import db
 # Handlers
 from app.handlers.base import start, help_command, cancel_any, error_handler
 from app.handlers.reports import cmd_rep, show_balance, show_history, export_operations, cmd_sum, cmd_balances, general_button_callback
-from app.handlers.operations import handle_text
+from app.handlers.operations import handle_text, handle_document
 from app.handlers.admin import undo_last_operation, undo_select_operation, cancel_undo, handle_delete_password, cmd_chats, cmd_clear_all, cmd_fix_balances, cmd_verify_integrity, cmd_normalize_currencies
 
 # Глобальная переменная для задачи
@@ -121,6 +121,9 @@ def main():
     
     # handle_text: group=1 (general operations)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text), group=1)
+    
+    # handle_document: group=1 (photos and documents for SWIFT OCR)
+    application.add_handler(MessageHandler(filters.PHOTO | filters.Document.ALL, handle_document), group=1)
 
     # Lifecycle hooks
     async def post_init(app: Application):

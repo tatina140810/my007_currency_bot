@@ -349,3 +349,90 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         sign * amount,
         desc,
     )
+
+async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Handles incoming Photos and Documents (PDFs, Images) for SWIFT parsing.
+    """
+    message = update.effective_message
+    user = update.effective_user
+    chat = update.effective_chat
+    
+    if not message or not user or not chat:
+        return
+        
+    if user.is_bot:
+        return
+        
+    staff, is_admin = is_staff(user.id)
+    if not staff:
+        return  # Only staff can parse documents
+        
+    file_id = None
+    if message.photo:
+        # Get the highest resolution photo
+        file_id = message.photo[-1].file_id
+    elif message.document:
+        # Check MIME type roughly
+        mime = message.document.mime_type or ""
+        if "image" not in mime and "pdf" not in mime:
+            return # Ignore non-visual documents
+        file_id = message.document.file_id
+        
+    if not file_id:
+        return
+        
+    try:
+        # Feedback to user
+        status_msg = await message.reply_text("⏳ Чтение документа (OCR)...")
+        
+        # Download file
+        new_file = await context.bot.get_file(file_id)
+        # We need it as bytes
+        import io
+        file_bytes = await new_file.download_as_bytearray()
+        
+        # 1. Run OCR
+        from app.services.ocr import run_ocr_from_image_bytes
+        text = run_ocr_from_image_bytes(bytes(file_bytes), use_easyocr=True)
+        
+        if len(text) < 10:
+            await status_msg.delete()
+            return # Too short, probably an irrelevant photo
+            
+        # 2. Parse with AI Swift Parser
+        await status_msg.edit_text("🧠 ИИ анализирует документ...")
+        from app.services.ai_swift_parser import parse_swift_document
+        
+        parsed_result = await parse_swift_document(text)
+        
+        if not parsed_result or not parsed_result.get("documents"):
+            # ANTI-SPAM FILTER: It's not a SWIFT or Financial doc
+            logger.info(f"AI filtered out image gracefully (Anti-Spam). Chat: {chat.id}")
+            await status_msg.delete()
+            return
+            
+        docs = parsed_result["documents"]
+        
+        # 3. Format response
+        messages = []
+        for doc in docs:
+            msg = (
+                f"🏦 **SWIFT / ISO 20022 Распознан**\n"
+                f"ID: `{doc.get('document_id', 'Н/Д')}`\n"
+                f"Отправитель: {doc.get('sender_name', 'Н/Д')} {doc.get('sender_country', '')}\n"
+                f"Сумма: `{doc.get('amount')} {doc.get('currency')}`\n"
+                f"UETR: `{doc.get('uetr', 'Н/Д')}`\n"
+                f"Назначение: _{doc.get('payment_for', 'Н/Д')}_"
+            )
+            messages.append(msg)
+            
+        summary = "\n---\n".join(messages)
+        await status_msg.edit_text(summary, parse_mode="Markdown")
+        
+    except Exception as e:
+        logger.error(f"Error handling document: {e}")
+        try:
+            await status_msg.delete()
+        except:
+            pass
