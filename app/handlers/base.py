@@ -114,6 +114,29 @@ async def cancel_any(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Нечего отменять.", parse_mode=None)
 
 
+async def handle_message_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Сброс SLA таймера при реакции на сообщение от стаффа"""
+    reaction = update.message_reaction
+    if not reaction:
+        return
+        
+    chat = reaction.chat
+    user = reaction.user
+    
+    if not chat or not user:
+        return
+        
+    chat_id = chat.id
+    user_id = user.id
+    
+    from app.handlers.utils import is_staff
+    
+    # Если реакцию поставил стафф, обновляем SLA (как будто он ответил)
+    if is_staff(user_id):
+        logger.info(f"Staff {user_id} reacted to message in chat {chat_id}. Resetting SLA timer.")
+        db.update_chat_sla(chat_id, is_staff=True)
+
+
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     """Обработка ошибок"""
     logger.exception("Unhandled exception", exc_info=context.error)

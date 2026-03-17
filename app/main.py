@@ -7,43 +7,83 @@ from telegram.ext import (
     MessageHandler,
     CallbackQueryHandler,
     filters,
+    MessageReactionHandler,
 )
 
 from app.core.config import BOT_TOKEN
 from app.core.logger import logger
 from app.services.operations import process_operation_batch
 from app.db.instance import db
+from app.handlers.utils import is_staff
 
 # Handlers
-from app.handlers.base import start, help_command, cancel_any, error_handler
-from app.handlers.reports import cmd_rep, show_balance, show_history, export_operations, cmd_sum, cmd_balances, general_button_callback
-from app.handlers.operations import handle_text, handle_document
-from app.handlers.admin import undo_last_operation, undo_select_operation, cancel_undo, handle_delete_password, cmd_chats, cmd_clear_all, cmd_fix_balances, cmd_verify_integrity, cmd_normalize_currencies
+from app.handlers.base import start, help_command, cancel_any, error_handler, handle_message_reaction
+from app.handlers.reports import cmd_rep, show_balance, show_history, export_operations, cmd_sum, cmd_balances, general_button_callback, cmd_back_report
+from app.handlers.operations import handle_text
+from app.handlers.admin import undo_last_operation, undo_select_operation, cancel_undo, handle_delete_password, cmd_chats, cmd_clear_all, cmd_fix_balances, cmd_verify_integrity, cmd_normalize_currencies, cmd_purge_db
+from app.handlers.pending import handle_ai_learning_callback, handle_balance_sync_callback
+from app.services.monitoring import sla_monitor_task
 
 # Глобальная переменная для задачи
 batch_task = None
+sla_task = None
 
 async def log_all_messages(update: Update, context):
     """Логирование всех сообщений"""
-    if not update.message:
+    message = update.message or update.edited_message or update.channel_post or update.edited_channel_post
+    if getattr(update, "callback_query", None):
+        logger.info(f"Callback Query: {update.callback_query.data}")
         return
         
-    user_id = update.effective_user.id if update.effective_user else "unknown"
-    chat_id = update.effective_chat.id if update.effective_chat else "unknown"
+    if not message:
+        logger.info(f"Update received but no message attached: {update.to_dict()}")
+        return
+        
+    user_id = message.from_user.id if message.from_user else "unknown"
+    chat_id = message.chat.id if message.chat else "unknown"
 
     logger.info("=" * 80)
-    if update.message.text:
-        text = update.message.text
-        logger.info(f"📨 ВХОДЯЩЕЕ СООБЩЕНИЕ: '{text}' from user {user_id} in chat {chat_id}")
-        logger.info(f"Entities: {update.message.entities}")
-    elif update.message.photo:
-        caption = update.message.caption or ""
+    if message.text:
+        text = message.text
+        logger.info(f"📨 ВХОДЯЩЕЕ СООБЩЕНИЕ: '{text}' (repr: {repr(text)}) from user {user_id} in chat {chat_id}")
+    elif message.photo:
+        caption = message.caption or ""
         logger.info(f"📸 ВХОДЯЩЕЕ ФОТО: Caption '{caption}' from user {user_id} in chat {chat_id}")
-    elif update.message.document:
-        caption = update.message.caption or ""
-        mime = update.message.document.mime_type
+    elif message.document:
+        caption = message.caption or ""
+        mime = message.document.mime_type or "unknown"
         logger.info(f"📄 ВХОДЯЩИЙ ДОКУМЕНТ: MIME={mime} Caption '{caption}' from user {user_id} in chat {chat_id}")
+        logger.info(f"❓ НЕИЗВЕСТНЫЙ ТИП СООБЩЕНИЯ: {message.to_dict()} from user {user_id} in chat {chat_id}")
     logger.info("=" * 80)
+
+    # Функция фильтрации коротких "пустых" сообщений от SLA трекинга
+    def is_generic_message(txt: str) -> bool:
+        if not txt:
+            return True
+        import re
+        # Убираем знаки препинания и приводим к нижнему регистру
+        clean = re.sub(r'[^\w\s]', '', txt).lower()
+        words = clean.split()
+        if not words: # Если остались только смайлики
+            return True
+        
+        # Сет игнорируемых слов
+        ignore_words = {"добрый", "день", "вечер", "утро", "принято", "хорошо", 
+                        "спасибо", "ок", "ok", "отлично", "благодарю", "супер", 
+                        "понял", "понятно", "спс", "здравствуйте", "привет", 
+                        "да", "ага", "плюс", "окей"}
+        
+        # Проверяем, состоят ли все слова текста только из игнорируемых
+        return all(w in ignore_words for w in words)
+
+    # Запись SLA для групп/супергрупп и личных чатов
+    if chat_id != "unknown" and user_id != "unknown":
+        if getattr(message.chat, "type", "private") in ["group", "supergroup", "private"]:
+            # Если пишет юзер, и это пустое "спасибо", таймер SLA не обновляется
+            if not is_staff(user_id) and is_generic_message(message.text):
+                logger.info(f"Skipping SLA timer for generic message: '{message.text}'")
+            else:
+                db.update_chat_sla(chat_id, is_staff(user_id))
 
 def main():
     """Главная функция"""
@@ -85,6 +125,15 @@ def main():
         group=-1
     )
 
+    # Реакции на сообщения (обновляет SLA, если лайк поставил стафф)
+    application.add_handler(MessageReactionHandler(handle_message_reaction), group=1)
+
+    # Жесткий перехват команды /back_report (group=-3)
+    application.add_handler(
+        MessageHandler(filters.Regex(r"^/back_report"), cmd_back_report),
+        group=-3
+    )
+
     # Команды
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
@@ -105,6 +154,8 @@ def main():
     application.add_handler(CommandHandler("fix", cmd_fix_balances))
     application.add_handler(CommandHandler("verify", cmd_verify_integrity))
     application.add_handler(CommandHandler("normalize", cmd_normalize_currencies))
+    application.add_handler(CommandHandler("purge_db", cmd_purge_db))
+    application.add_handler(CommandHandler("back_report", cmd_back_report))
 
 
 
@@ -124,39 +175,11 @@ def main():
     application.add_handler(CallbackQueryHandler(general_button_callback, pattern="^(show_balance|show_history)$"))
     application.add_handler(CallbackQueryHandler(undo_select_operation, pattern="^undo_select_"))
     application.add_handler(CallbackQueryHandler(cancel_undo, pattern="^cancel_undo$"))
+    # AI Learning Callbacks
+    application.add_handler(CallbackQueryHandler(handle_ai_learning_callback, pattern="^ai_learn_"))
+    # Balance Sync Callbacks
+    application.add_handler(CallbackQueryHandler(handle_balance_sync_callback, pattern="^sync_bal_"))
 
-    # Текстовые обработчики
-    # handle_delete_password: group=0 (prioritize password check)
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_delete_password), group=0)
-    
-    # handle_text: group=1 (general operations)
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text), group=1)
-    
-    # handle_document: group=1 (photos and documents for SWIFT OCR)
-    application.add_handler(MessageHandler(filters.PHOTO | filters.Document.ALL, handle_document), group=1)
-
-    # Lifecycle hooks
-    async def post_init(app: Application):
-        global batch_task
-        batch_task = asyncio.create_task(process_operation_batch())
-        logger.info("Фоновая задача батчинга запущена")
-
-    async def post_shutdown(app: Application):
-        global batch_task
-        if batch_task:
-            batch_task.cancel()
-            try:
-                await batch_task
-            except asyncio.CancelledError:
-                logger.info("Фоновая задача батчинга остановлена")
-
-    application.post_init = post_init
-    application.post_shutdown = post_shutdown
-    application.add_error_handler(error_handler)
-
-    logger.info("Бот успешно запущен!")
-    print("🚀 БОТ УСПЕШНО ЗАПУЩЕН")
-    
     # Fallback Command Handler (Fix for missing entities)
     async def fallback_command_handler(update: Update, context):
         text = update.message.text
@@ -192,16 +215,54 @@ def main():
             "cash_report": cmd_cash_report,
             "set_rate": cmd_set_rate,
             "cash_exchange": cmd_internal_exchange,
-            "cancel": cancel_any
+            "cancel": cancel_any,
+            "back_report": cmd_back_report
         }
         
         handler_func = command_map.get(cmd_raw)
         if handler_func:
             await handler_func(update, context)
 
-    # Register Fallback Handler in Group 0 (Checked if CommandHandler fails)
+    # Register Fallback Handler in Group 0 FIRST (before handle_delete_password catches it)
     application.add_handler(MessageHandler(filters.Regex(r"^/"), fallback_command_handler), group=0)
 
+    # Текстовые обработчики
+    # handle_delete_password: group=1 (prioritize password check)
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_delete_password), group=1)
+    
+    # handle_text: group=2 (general operations)
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text), group=2)
+
+    # Lifecycle hooks
+    async def post_init(app: Application):
+        global batch_task, sla_task
+        batch_task = asyncio.create_task(process_operation_batch())
+        sla_task = asyncio.create_task(sla_monitor_task(app))
+        logger.info("Фоновая задача батчинга и SLA мониторинг запущены")
+
+    async def post_shutdown(app: Application):
+        global batch_task, sla_task
+        if batch_task:
+            batch_task.cancel()
+            try:
+                await batch_task
+            except asyncio.CancelledError:
+                logger.info("Фоновая задача батчинга остановлена")
+                
+        if sla_task:
+            sla_task.cancel()
+            try:
+                await sla_task
+            except asyncio.CancelledError:
+                logger.info("SLA мониторинг остановлен")
+
+    application.post_init = post_init
+    application.post_shutdown = post_shutdown
+    application.add_error_handler(error_handler)
+
+    logger.info("Бот успешно запущен!")
+    print("🚀 БОТ УСПЕШНО ЗАПУЩЕН")
+    
     application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=False)
 
 if __name__ == "__main__":
