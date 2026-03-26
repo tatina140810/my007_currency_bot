@@ -2,6 +2,9 @@
 Конфигурационный файл
 """
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ВАЖНО: Замените на токен вашего бота от @BotFather
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
