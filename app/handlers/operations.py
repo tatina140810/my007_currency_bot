@@ -167,8 +167,8 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         parsed_zak = parse_zak_message(working_text, chat.id, message.message_id, msg_date_zak)
         
-        # Строгий фильтр расходов убран, чтобы записывались все пополнения, снятия и 'живая речь'.
-        # parsed_zak = [op for op in parsed_zak if op.get("percent_value", 0) > 0]
+        # Фильтруем пустую болтовню, оставляем только реальные операции с суммой
+        parsed_zak = [op for op in parsed_zak if op.get("amount", 0) > 0]
         
         if parsed_zak:
             logger.info(f"[Operations] Intercepted Zak operation: {parsed_zak}")
