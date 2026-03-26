@@ -123,7 +123,7 @@ def normalize_currency(curr: str) -> str:
         "сом": "KGS", "сомов": "KGS", "kgs": "KGS", "c": "KGS", "с": "KGS",
         "usd": "USD", "долл": "USD", "$": "USD", "дол": "USD",
         "доллар": "USD", "долларов": "USD", "долларах": "USD",
-        "eur": "EUR", "€": "EUR", "ев": "EUR", "евро": "EUR", "euro": "EUR",
+        "eur": "EUR", "€": "EUR", "ев": "EUR", "евро": "EUR", "euro": "EUR", "е": "EUR", "e": "EUR",
         "kzt": "KZT", "тенге": "KZT",
         "cny": "CNY", "yuan": "CNY", "¥": "CNY",
         "юан": "CNY", "юань": "CNY", "юаней": "CNY", "юани": "CNY", "юаня": "CNY",
@@ -134,53 +134,117 @@ def normalize_currency(curr: str) -> str:
     return curr_map.get(c, c.upper())
 
 def parse_human_number(s: str) -> float:
-    """Парсит число из человеческого формата"""
-    s = s.strip()
-    s = s.replace("\u00A0", " ")
-    s = re.sub(r"\s+", "", s)
-    
-    has_dot = "." in s
-    has_comma = "," in s
-    
-    if has_dot and has_comma:
-        if s.rfind(",") > s.rfind("."):
-            s = s.replace(".", "").replace(",", ".")
-        else:
-            s = s.replace(",", "")
-        return float(s)
-    
-    if has_dot and not has_comma:
-        # If it looks like 1.234.567 -> thousands
-        if re.fullmatch(r"\d{1,3}(\.\d{3}){2,}", s):
-            s = s.replace(".", "")
-            return float(s)
-        # If it looks like 1.234 -> Could be 1234 or 1.234. 
-        # In currency context, usually 2 decimals. 
-        # But if we have explicit "1.234", it is ambiguous.
-        # However, for this specific bot, user inputs "6 140,00".
-        # Let's assume if it is a small number (one group of 3 digits), it is decimal.
-        # Or better: check context. But here we only have string.
-        # Let's default to float if simple dot.
-        return float(s)
-    
-    if has_comma and not has_dot:
-        if re.fullmatch(r"\d{1,3}(,\d{3})+", s):
-            s = s.replace(",", "")
-            return float(s)
-        s = s.replace(",", ".")
-        return float(s)
-    
-    return float(s)
+    """
+    Парсит число из человеческого формата. 
+    Добавлена защита от некорректных строк и аномальных значений.
+    """
+    try:
+        s = s.strip()
+        s = s.replace("\u00A0", " ")
+        s = re.sub(r"\s+", "", s)
+        
+        # Explicitly reject date formats (e.g. 12.03.2026) to prevent them being treated as sums
+        if re.fullmatch(r"\d{1,2}[\./-]\d{1,2}[\./-]\d{2,4}", s):
+            return 0.0
+            
+        has_dot = "." in s
+        has_comma = "," in s
+        
+        if has_dot and has_comma:
+            if s.rfind(",") > s.rfind("."):
+                s = s.replace(".", "").replace(",", ".")
+            else:
+                s = s.replace(",", "")
+        elif has_dot and not has_comma:
+            # Check for 1.234.567 pattern
+            if re.fullmatch(r"\d{1,3}(\.\d{3})+", s):
+                s = s.replace(".", "")
+        elif has_comma and not has_dot:
+            # Check for 1,234,567 pattern
+            if re.fullmatch(r"\d{1,3}(,\d{3})+", s):
+                s = s.replace(",", "")
+            else:
+                s = s.replace(",", ".")
 
-def parse_income_notification(text: str) -> Optional[Dict]:
+        val = float(s)
+        
+        # Sane range check (prevent accidental concatenation of large strings resulting in billions)
+        if val > 1_000_000_000:
+            logger.warning(f"[Parser] Abnormally large value detected: {val}. Capping to 0.")
+            return 0.0
+            
+        return val
+    except Exception as e:
+        logger.error(f"[Parser] Failed to parse human number: '{s}' -> {e}")
+        return 0.0
+
+def extract_currency_from_str(s: str, default: str = "RUB") -> str:
+    """
+    Пытается вычленить валюту из строки (например 'евро', 'рск', '$', 'usd').
+    """
+    low = s.lower()
+    if any(x in low for x in ["usd", "$", "доллар", "бакс", "cent"]):
+        return "USD"
+    if any(x in low for x in ["eur", "€", "евро"]):
+        return "EUR"
+    if any(x in low for x in ["cny", "юан", "yuan", "rmb", "¥"]):
+        return "CNY"
+    if any(x in low for x in ["aed", "дирхам"]):
+        return "AED"
+    if any(x in low for x in ["kzt", "тенге"]):
+        return "KZT"
+    if any(x in low for x in ["kgs", "сом"]):
+        return "KGS"
+    if any(x in low for x in ["usdt", "tether"]):
+        return "USDT"
+    if any(x in low for x in ["rub", "₽", "руб", "рск", "деревян"]):
+         return "RUB"
+    return default
+
+def parse_residual_balance(text: str) -> Optional[Dict]:
+    """
+    Пытается найти в тексте объявление "остатка".
+    Примеры:
+    - "-5021720₽ Ост 95562045₽"
+    - "99.899.642руб ост"
+    - "40 000евро ост рск"
+    Возвращает словарь {"amount": 95562045.0, "currency": "RUB"}
+    """
     if not text:
         return None
+        
+    low = _norm_ws(text).lower()
+    
+    # Поддерживаем два паттерна: `<число> <валюта> ост` И `Ост <число> <валюта>`
+    match = re.search(r"ост(?:аток)?\s*(-?[\d\s.,]+)\s*([a-zа-я$€¥]{0,8})", low)
+    if match:
+        amount_str = match.group(1).strip()
+        if any(c.isdigit() for c in amount_str):
+            curr_str = match.group(2)
+            amount = parse_human_number(amount_str)
+            curr = extract_currency_from_str(curr_str or low)
+            return {"amount": amount, "currency": curr}
+        
+    match_rev = re.search(r"(-?[\d\s.,]+)\s*([a-zа-я$€¥]{0,8})\s*ост(?:аток)?", low)
+    if match_rev:
+        amount_str = match_rev.group(1).strip()
+        if any(c.isdigit() for c in amount_str):
+            curr_str = match_rev.group(2)
+            amount = parse_human_number(amount_str)
+            curr = extract_currency_from_str(curr_str or low)
+            return {"amount": amount, "currency": curr}
+        
+    return None
+
+def parse_multiple_income_notifications(text: str) -> List[Dict]:
+    if not text:
+        return []
 
     text = _norm_ws(text)
     low = text.lower()
 
-    if not re.search(r"\b(поступ\w*|зачисл\w*|получен\w*)\b", low):
-        return None
+    if not re.search(r"\b(поступ\w*|зачисл\w*|получен\w*|приход\w*|пришли)\b", low):
+        return []
 
     money_re = re.compile(
         r"(?P<amount>\d[\d\s\u00A0\u202F]*(?:[.,]\d{1,2})?)\s*"
@@ -196,26 +260,48 @@ def parse_income_notification(text: str) -> Optional[Dict]:
         re.IGNORECASE,
     )
 
-    m = money_re.search(text)
-    if not m:
-        return None
-
-    amount_str = m.group("amount")
-    curr_raw = m.group("curr")
-
-    try:
-        amount = parse_human_number(amount_str)
-    except Exception:
-        logger.exception(f"[INCOME_PARSE] bad amount: {amount_str!r}")
-        return None
-
-    currency = normalize_currency(curr_raw)
-
-    return {
-        "amount": float(amount),
-        "currency": currency,
-        "description": text.strip(),
-    }
+    results = []
+    
+    # Разделяем на сегменты (каждая квитанция часто отделяется //- или \n-)
+    segments = re.split(r'(?://-|\n-)', text)
+    if len(segments) <= 1:
+        segments = [text]
+        
+    for seg in segments:
+        seg_low = seg.lower()
+        if not re.search(r"\b(поступ\w*|зачисл\w*|получен\w*|приход\w*|пришли)\b", seg_low):
+            continue
+            
+        m = money_re.search(seg)
+        if m:
+            amount_str = m.group("amount")
+            curr_raw = m.group("curr")
+            
+            try:
+                amount = parse_human_number(amount_str)
+                if amount <= 0:
+                    continue
+                    
+                currency = extract_currency_from_str(curr_raw)
+                from app.core.config import CURRENCIES
+                if currency not in CURRENCIES:
+                    continue
+                    
+                desc_text = seg.strip()
+                # Ограничиваем описание, но оставляем полезный контекст
+                if len(desc_text) > 150:
+                     desc_text = desc_text[:147] + "..."
+                     
+                results.append({
+                    "type": "Поступление",
+                    "amount": amount,
+                    "currency": currency,
+                    "description": f"Авто-приход (SMS/Notif): {desc_text}"
+                })
+            except Exception as e:
+                logger.error(f"[INCOME_PARSE] unexpected error in segment: {e}")
+                
+    return results
 
 
 def parse_manual_operation_line(text: str) -> Optional[Dict]:
@@ -311,7 +397,7 @@ def parse_manual_operation_line(text: str) -> Optional[Dict]:
 
     # ОПЛАТА ПП
     m = re.search(
-        r"(оплата\s*пп)\s+([\d\s.,]+)\s+([a-zа-я$€¥]{2,6})",
+        r"(?:.*\s)?(оплата\s*пп)\s+([\d\s.,]+)\s+([a-zа-я$€¥]{2,6})",
         t,
     )
     if m:
@@ -324,17 +410,20 @@ def parse_manual_operation_line(text: str) -> Optional[Dict]:
 
     # ФИКС (КОНВЕРТАЦИЯ)
     m = re.search(
-        r"фикс\s+([\d\s.,]+)\s*([a-zа-я$€¥]{1,10})\s+([\d\s.,]+)\s*([a-zа-я$€¥]{1,10})",
+        r"фикс\s+([\d\s.,]+)\s*([a-zа-я$€¥]{1,10})\s+([\d\s.,]+)\s*([a-zа-я$€¥]{1,10})?",
         t,
         re.IGNORECASE,
     )
     if m:
+        # Check if the 4th group (to_currency) exists.
+        to_curr = normalize_currency(m.group(4)) if m.group(4) else "RUB"
+        
         return {
             "type": "Конвертация",
             "amount": parse_human_number(m.group(1)),
             "currency": normalize_currency(m.group(2)),
             "rate": parse_human_number(m.group(3)),
-            "to_currency": normalize_currency(m.group(4)),
+            "to_currency": to_curr,
             "description": "Фикс",
         }
 
@@ -380,7 +469,7 @@ def parse_bulk_pp_payments(clean_text: str) -> List[Dict]:
     )
 
     pay_re = re.compile(
-        r"^\s*(\d+)\s+(.+?)\s{2,}(.+?)\s{2,}([0-9][0-9=\-., ]*)\s+([A-Z]{3})\s*$"
+        r"^\s*(\d+)\s+(.+?)\s+(.+?)\s+([0-9][0-9=\-., ]*)\s+([A-Z]{3})(?:\s+.*)?$"
     )
 
     def norm_group(raw: str) -> str:
@@ -434,12 +523,14 @@ def parse_bulk_pp_payments(clean_text: str) -> List[Dict]:
 def looks_like_bank_income(text: str) -> bool:
     t = _norm_ws(text or "").lower().strip()
 
-    # исключаем ручные операции
-    if t.startswith(("оплата", "взнос", "выдача", "фикс", "запрос")):
+    # исключаем ручные операции и списки платежей
+    if t.startswith(("оплата", "взнос", "выдача", "фикс", "запрос", "список платежей")):
+        return False
+    if "список платежей" in t:
         return False
 
-    # ловим поступ… / зачисл…
-    income_words = bool(re.search(r"\b(поступ\w*|зачисл\w*|получен\w*)\b", t))
+    # ловим поступ… / зачисл… / приход… / пришли
+    income_words = bool(re.search(r"\b(поступ\w*|зачисл\w*|получен\w*|приход\w*|пришли)\b", t))
 
     bank_markers = any(k in t for k in (
         "перевод spfs", "перевод finline", "согл. п.п.", "п.п.",
@@ -458,3 +549,214 @@ def looks_like_bank_income(text: str) -> bool:
     ))
 
     return (income_words and has_currency) or (bank_markers and has_currency)
+
+
+def parse_back_report_payments(text: str, msg_id: Optional[int] = None) -> Dict:
+    """
+    Парсит список платежей для /back_report.
+    Возвращает dict с датой и списком строк.
+    """
+    if not text:
+        return {"date": datetime.now(KG_TZ).strftime("%d.%m.%Y"), "items": [], "msg_id": msg_id}
+    
+    lines = [ln.strip() for ln in text.split("\n") if ln.strip()]
+    
+    date_str = datetime.now(KG_TZ).strftime("%d.%m.%Y")
+    bank_candidate = ""
+    company_candidate = ""
+    last_non_payment_lines = []
+    
+    items = []
+    
+    payment_re = re.compile(
+        r"^(?:\d+[.)]?\s+)?([А-Яа-яA-Za-z]+)\s+(.+?)\s+([\d\s.,]+(?:-\d+)?=?)\s+([A-Za-zА-Яа-я€$¥]{2,10})(?:\s+[\d.,]+)?$"
+    )
+    
+    for ln in lines:
+        if "список платежей" in ln.lower():
+            # Извлекаем дату: "Список платежей на 10.03.2026"
+            m = re.search(r'(\d{2}\.\d{2}\.\d{4})', ln)
+            if m:
+                date_str = m.group(1)
+            continue
+            
+        match = payment_re.match(ln)
+        if match:
+            num_non_payments = len(last_non_payment_lines)
+            if num_non_payments >= 2:
+                bank_candidate = last_non_payment_lines[-2]
+                company_candidate = last_non_payment_lines[-1]
+            elif num_non_payments == 1:
+                company_candidate = last_non_payment_lines[0]
+            
+            last_non_payment_lines = []
+            
+            left_block, receiver, p_sum_raw, p_currency = match.groups()
+            
+            # Use norm_group to standardize company prefixes exactly like parse_bulk_pp_payments 
+            def norm_group(raw: str) -> str:
+                raw = (raw or "").strip()
+                low = raw.lower()
+                if low.startswith("денис"):
+                    return "Денис Биш"
+                if low.startswith("уз"):
+                    return "УЗ"
+                if low.startswith("медигрупп"):
+                    return "Медигрупп"
+                return raw
+                
+            p_type = norm_group(left_block)
+            p_counterparty = receiver.strip()
+            
+            s = p_sum_raw.replace(' ', '').replace('=', '')
+            s = re.sub(r'-(\d+)$', r'.\1', s)
+            s = s.replace(',', '.')
+            try:
+                amt = float(s)
+            except:
+                amt = 0.0
+                
+            items.append({
+                "bank": bank_candidate,
+                "company": company_candidate,
+                "type": p_type,
+                "counterparty": p_counterparty,
+                "currency": p_currency,
+                "sum": amt
+            })
+        else:
+            last_non_payment_lines.append(ln)
+            
+    return {"date": date_str, "items": items, "msg_id": msg_id}
+
+def parse_implicit_conversion(text: str, reply_text: str) -> Optional[Dict]:
+    """
+    Парсит неявную конвертацию, когда пользователь отвечает на сообщение с курсом.
+    text (текущее сообщение): сумма, которую нужно поменять (например, "7803")
+    reply_text (исходное сообщение): курс (например, "82.80")
+    """
+    if not text or not reply_text:
+        return None
+        
+    # Пытаемся распарсить число из исходного сообщения (курс)
+    try:
+        # Извлекаем первое попавшееся число из reply_text
+        m_rate = re.search(r"([\d.,]+)", reply_text)
+        if not m_rate:
+            return None
+        rate = parse_human_number(m_rate.group(1))
+    except Exception:
+        return None
+        
+    # Пытаемся распарсить число из текущего сообщения (сумма ин. валюты)
+    # Текущее сообщение должно в основном состоять из цифр, возможно со знаками
+    t_clean = _norm_ws(text).strip()
+    if not re.match(r"^[\d\s.,]+(?:[a-zа-я]{1,5})?$", t_clean.lower()):
+         # If text is not just a number (maybe with small currency suffix), ignore
+         return None
+         
+    try:
+        m_amount = re.search(r"([\d.,]+)", t_clean)
+        if not m_amount:
+            return None
+        amount = parse_human_number(m_amount.group(1))
+    except Exception:
+        return None
+        
+    # Эвристика определения валюты по курсу
+    # Юань: 10 .. 20
+    # Доллар: 70 .. 92
+    # Евро: 93 .. 120
+    # Тенге: 0.1 .. 0.5 (редко)
+    # AED: 20 .. 30
+    
+    currency = "RUB" # Default
+    if 10.0 <= rate <= 15.0:
+        currency = "CNY"
+    elif 70.0 <= rate <= 92.9:
+        currency = "USD"
+    elif 93.0 <= rate <= 120.0:
+        currency = "EUR"
+    elif 23.0 <= rate <= 30.0:
+        currency = "AED"
+    elif 0.1 <= rate <= 5.0:
+        currency = "KZT"
+    else:
+        # Не смогли надежно определить валюту по курсу
+        logger.warning(f"Не удалось определить валюту для курса {rate}. Используем USD по умолчанию.")
+        currency = "USD"
+        
+    # Возвращаем структуру, аналогичную "Фикс"
+    return {
+        "type": "Конвертация",
+        "amount": amount,
+        "currency": currency,
+        "rate": rate,
+        "to_currency": "RUB", # По умолчанию конвертируем в/из RUB
+        "description": "Фикс (авто)"
+    }
+
+def is_rate_message(text: str) -> bool:
+    """
+    Проверяет, является ли текст просто курсом (число, опционально с валютой).
+    Например: "83", "95", "11.95", "11.4 юань", "95 евро".
+    """
+    if not text:
+        return False
+        
+    t = _norm_ws(text).strip().lower()
+    
+    # Регулярка для курса:
+    # 1. Одно число (возможно десятичное).
+    # 2. Опциональная короткая валюта (юань, евро, usd, rub и т.д.) после числа.
+    # Больше ничего быть не должно в строке.
+    
+    # Только число: "83", "11.95", "11,95"
+    if re.fullmatch(r"[\d.,]+", t):
+        try:
+            val = parse_human_number(t)
+            return val > 0
+        except:
+            return False
+            
+    # Число + валюта: "11.4 юань", "95 евро", "83 usd"
+    # Допускаем пробел между числом и валютой. Ограничиваем длину валюты.
+    match = re.fullmatch(r"([\d.,]+)\s*([a-zа-я$€¥]{1,10})", t)
+    if match:
+        try:
+            val = parse_human_number(match.group(1))
+            if val <= 0:
+                return False
+            
+            # Проверяем, что кусок текста похож на валюту
+            curr_str = match.group(2)
+            # Если после нормализации это не просто пустая строка и есть маппинг
+            # Но мы можем просто довериться extract_currency_from_str
+            extracted = extract_currency_from_str(curr_str)
+            # Даже если defaulst "RUB", это окей. Главное что строка короткая и это одно слово.
+            return True
+        except:
+            return False
+            
+    return False
+
+def is_date_or_doc_number(text: str) -> bool:
+    """Checks if the text is just a date, username, or document number to avoid AI prompts."""
+    if not text:
+        return False
+        
+    t = _norm_ws(text).strip()
+    
+    # Check for just a username
+    if re.fullmatch(r"@[a-zA-Z0-9_]+", t):
+        return True
+        
+    # Check for date (e.g. 17.03.2026, 17.03)
+    if re.fullmatch(r"\d{1,2}[\./]\d{1,2}(?:[\./]\d{2,4})?", t):
+        return True
+        
+    # Check for document number (e.g. № 12345, n123, doc 44)
+    if re.search(r"^(?:№|n|doc|док|номер|документ)\s*[\d\-a-zA-Zа-яА-Я]+$", t.lower()):
+        return True
+        
+    return False

@@ -4,7 +4,7 @@
 import os
 
 # ВАЖНО: Замените на токен вашего бота от @BotFather
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8555695431:AAF69crWuv8krwg95uCsjR2bYuYAv9ccwAw")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 
 # OpenAI API Key для ИИ-разбора текста
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
@@ -13,6 +13,12 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 CURRENCIES = ["USD", "EUR", "RUB", "CNY", "AED", "KGS", "USDT", "KZT"]
 
 REPORT_CHAT_ID = int(os.getenv("REPORT_CHAT_ID", "-1001922337698"))
+
+# Чат для системных уведомлений (SLA, AI Learning)
+ADMIN_ALERT_CHAT_ID = int(os.getenv("ADMIN_ALERT_CHAT_ID", "-5093538782"))
+
+CONVERSION_GROUP_NAME = "Курсы, конвертации,суммы"
+CASSA_SPREADSHEET_ID = "1-_LgK8ZNty16hGUyHhnJ20heGM20GbPUW-RnMyLTJO4"
 
 # Типы операций
 OPERATION_TYPES = [

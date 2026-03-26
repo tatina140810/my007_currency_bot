@@ -22,6 +22,7 @@ from app.handlers.reports import cmd_rep, show_balance, show_history, export_ope
 from app.handlers.operations import handle_text
 from app.handlers.admin import undo_last_operation, undo_select_operation, cancel_undo, handle_delete_password, cmd_chats, cmd_clear_all, cmd_fix_balances, cmd_verify_integrity, cmd_normalize_currencies, cmd_purge_db
 from app.handlers.pending import handle_ai_learning_callback, handle_balance_sync_callback
+from app.handlers.documents import handle_uploaded_excel
 from app.services.monitoring import sla_monitor_task
 
 # Глобальная переменная для задачи
@@ -149,7 +150,6 @@ def main():
     application.add_handler(CommandHandler("allbal", cmd_balances))
     application.add_handler(CommandHandler("rep", cmd_rep))
     application.add_handler(CommandHandler("sum", cmd_sum))
-    application.add_handler(CommandHandler("sum", cmd_sum))
     application.add_handler(CommandHandler("clear", cmd_clear_all)) # /clear all handled inside? no, cmd_clear_all checks logic
     application.add_handler(CommandHandler("fix", cmd_fix_balances))
     application.add_handler(CommandHandler("verify", cmd_verify_integrity))
@@ -233,12 +233,18 @@ def main():
     # handle_text: group=2 (general operations)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text), group=2)
 
+    # handle_uploaded_excel: group=3 (excel files for reconciliation)
+    application.add_handler(MessageHandler(filters.Document.FileExtension("xlsx"), handle_uploaded_excel), group=3)
+
     # Lifecycle hooks
     async def post_init(app: Application):
         global batch_task, sla_task
         batch_task = asyncio.create_task(process_operation_batch())
         sla_task = asyncio.create_task(sla_monitor_task(app))
-        logger.info("Фоновая задача батчинга и SLA мониторинг запущены")
+        
+        from app.services.reconciliation import reconcile_pending_operations
+        app.job_queue.run_repeating(reconcile_pending_operations, interval=900, first=60)
+        logger.info("Фоновая задача батчинга, SLA мониторинг и фоновый синхронизатор-реконсилятор (15мин) запущены")
 
     async def post_shutdown(app: Application):
         global batch_task, sla_task

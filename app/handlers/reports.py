@@ -12,6 +12,7 @@ from app.core.constants import KG_TZ
 from app.db.instance import db
 from app.handlers.utils import get_chat_id, get_chat_name, is_staff
 from app.services.export import export_to_excel, export_group_balances_to_excel, export_report_income_matrix
+from app.services.google_sheets import sync_all_balances_to_sheet, sync_daily_income, SPREADSHEET_ID
 from app.services.parser import parse_timestamp, parse_bulk_pp_payments, normalize_currency, parse_human_number
 from app.services.math import aggregate_bulk_sum
 
@@ -117,30 +118,16 @@ async def cmd_rep(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    base_dir = os.path.join(os.getcwd(), "outputs")
-    os.makedirs(base_dir, exist_ok=True)
-
-    filename = f"report_income_{report_date_str}.xlsx"
-    output_path = os.path.join(base_dir, filename)
-
     try:
-        await asyncio.to_thread(
-            export_report_income_matrix,
-            rows,
-            output_path,
-            report_date_str
+        await sync_daily_income(report_date_str, rows)
+        sheet_url = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/edit#gid=0"
+        
+        await update.message.reply_text(
+            f"✅ Отчет поступлений за {report_date.strftime('%d.%m.%Y')} успешно синхронизирован с Google Таблицей!\n\n"
+            f"📊 <b><a href='{sheet_url}'>Открыть Google Таблицу</a></b>",
+            parse_mode="HTML"
         )
-
-        with open(output_path, "rb") as f:
-            await update.message.reply_document(
-                document=f,
-                filename=filename,
-                caption=(
-                    f"📄 Отчет поступлений за {report_date.strftime('%d.%m.%Y')}\n"
-                    f"Источник: Все чаты / Группы"
-                ),
-            )
-
+        # Also continue generating Excel as backup if needed, but per user request, we skip it
     except Exception as e:
         logger.exception("[REP] Ошибка при создании/отправке отчета")
         await update.message.reply_text(f"❌ Ошибка /rep: {e}", parse_mode=None)
@@ -156,32 +143,21 @@ async def cmd_balances(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Только для сотрудников")
         return
 
-    logger.info("[ALLBAL] Начинаем экспорт...")
-
-    fd, path = tempfile.mkstemp(suffix=".xlsx")
-    os.close(fd)
+    logger.info("[ALLBAL] Начинаем экспорт в Google Sheets...")
 
     try:
-        await asyncio.to_thread(export_group_balances_to_excel, db, path)
+        await sync_all_balances_to_sheet()
+        sheet_url = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/edit#gid=0"
 
-        filename = f"остатки_{datetime.now().strftime('%Y-%m-%d_%H-%M')}.xlsx"
-        
-        with open(path, "rb") as f:
-            await update.message.reply_document(
-                document=f,
-                filename=filename,
-                caption="Остатки по группам (Excel)"
-            )
+        await update.message.reply_text(
+            f"✅ Остатки успешно синхронизированы!\n\n"
+            f"📊 <b><a href='{sheet_url}'>Открыть Балансы</a></b>",
+            parse_mode="HTML"
+        )
 
     except Exception as e:
         logger.exception("[ALLBAL] Ошибка")
         await update.message.reply_text(f"❌ Ошибка /allbal: {e}")
-
-    finally:
-        try:
-            os.remove(path)
-        except Exception:
-            pass
 
 
 async def show_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -318,40 +294,19 @@ async def export_operations(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         filename = "operations_all.xlsx"
 
-    base_dir = os.path.join(os.getcwd(), "outputs")
-    os.makedirs(base_dir, exist_ok=True)
-    output_path = os.path.join(base_dir, filename)
-
     try:
-        await asyncio.to_thread(
-            export_to_excel,
-            db,
-            output_path,
-            date_from,
-            date_to
+        # Full history is tracked in realtime on Google Sheets, so we just provide the link.
+        sheet_url = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/edit#gid=0"
+        
+        msg_text = (
+            f"✅ История операций ведется автоматически в Google Таблице!\n\n"
+            f"🔗 <b><a href='{sheet_url}'>Открыть Историю</a></b>"
         )
-
-        if not os.path.exists(output_path):
-            await status_msg.edit_text("❌ Ошибка: файл не был создан", parse_mode=None)
-            return
-
-        try:
-            await status_msg.delete()
-        except:
-            pass
-
-        with open(output_path, "rb") as file:
-            caption_text = datetime.now(KG_TZ).strftime("%d.%m.%Y %H:%M")
-            if date_from:
-                caption_text += f"\nОперации за {date_from.strftime('%d.%m.%Y')}"
-            else:
-                caption_text += f"\n Все операции"
-
-            await update.message.reply_document(
-                document=file,
-                filename=filename,
-                caption=caption_text,
-            )
+        
+        if date_from:
+             msg_text += f"\n\n<em>Примечание: Для выборки за {date_from.strftime('%d.%m.%Y')} используйте встроенные фильтры Google Sheets.</em>"
+             
+        await status_msg.edit_text(msg_text, parse_mode="HTML")
 
     except Exception as e:
         logger.exception(f"❌ Ошибка экспорта")
@@ -376,3 +331,74 @@ async def general_button_callback(update: Update, context: ContextTypes.DEFAULT_
         await show_balance(update, context)
     elif query.data == "show_history":
         await show_history(update, context)
+
+
+async def cmd_back_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Команда /back_report"""
+    from app.core.logger import logger
+    logger.info("[BACK_REPORT] Command triggered")
+    
+    msg = update.effective_message
+    if not msg:
+        logger.warning("[BACK_REPORT] No effective message")
+        return
+        
+    text_to_parse = None
+    if msg.reply_to_message and msg.reply_to_message.text:
+        text_to_parse = msg.reply_to_message.text
+        logger.info("[BACK_REPORT] Using reply_to_message text")
+    elif context.args:
+        text_to_parse = msg.text.split("\n", 1)[1] if "\n" in msg.text else " ".join(context.args)
+        logger.info("[BACK_REPORT] Using args text")
+    else:
+        from app.db.instance import db
+        from app.core.config import CONVERSION_GROUP_NAME
+        
+        if msg.chat.type == "private":
+            # For DMs, try fetching the group's last message first
+            group_id = db.get_chat_id_by_name(CONVERSION_GROUP_NAME)
+            if group_id:
+                text_to_parse = db.get_last_back_report_text(group_id)
+                logger.info(f"[BACK_REPORT] Retrieved from GROUP DB ({CONVERSION_GROUP_NAME}) - length: {len(text_to_parse) if text_to_parse else 0}")
+                
+        # Fallback to current chat exactly
+        if not text_to_parse:
+            text_to_parse = db.get_last_back_report_text(msg.chat_id)
+            logger.info(f"[BACK_REPORT] Retrieved from LOCAL DB, length: {len(text_to_parse) if text_to_parse else 0}")
+        
+    if not text_to_parse:
+        logger.warning("[BACK_REPORT] text_to_parse is empty")
+        await msg.reply_text("❌ Нет данных для формирования отчета. Либо ответьте на сообщение (Reply), либо отправьте список платежей перед командой.")
+        return
+        
+    from app.services.parser import parse_back_report_payments
+    from app.services.export import export_back_report_to_excel
+    import tempfile
+        
+    try:
+        parsed = parse_back_report_payments(text_to_parse)
+        logger.info(f"[BACK_REPORT] Parsed data items count: {len(parsed['items'])}")
+        if not parsed["items"]:
+            await msg.reply_text("❌ В сообщении не найдено платежей.")
+            return
+            
+        filename = f"back_report_{parsed['date']}.xlsx"
+        filepath = os.path.join(tempfile.gettempdir(), filename)
+        logger.info(f"[BACK_REPORT] Exporting to {filepath}")
+        
+        export_back_report_to_excel(parsed, filepath)
+        
+        if os.path.exists(filepath):
+            logger.info(f"[BACK_REPORT] Sending document {filepath}")
+            with open(filepath, "rb") as f:
+                await msg.reply_document(document=f, filename=filename)
+            try:
+                os.remove(filepath)
+            except Exception as e:
+                logger.error(f"[BACK_REPORT] Failed to remove temp file: {e}")
+        else:
+            logger.error("[BACK_REPORT] File does not exist after export!")
+    except Exception as e:
+        logger.exception(f"[BACK_REPORT] Exception during execution: {e}")
+        await msg.reply_text(f"❌ Ошибка при формировании отчета: {e}")
+

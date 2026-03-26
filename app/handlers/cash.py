@@ -476,15 +476,19 @@ async def manual_exchange(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     chat_id = update.effective_chat.id
     
+    chat_type = update.effective_chat.type
+    is_private = chat_type == "private"
+
     # 1. Deduct RUB
     await queue_operation(chat_id, "Manual FX", "RUB", -rub_amount, desc)
     
     # 2. Add Target Currency
     await queue_operation(chat_id, "Manual FX", target_curr, target_amount, desc)
     
-    await update.message.reply_text(
-        f"✅ Обмен записан:\n"
-        f"📉 RUB: -{rub_amount:,.2f}\n"
-        f"📈 {target_curr}: +{target_amount:,.2f}\n"
-        f"Курс: {rate}"
-    )
+    if is_private:
+        await update.message.reply_text(
+            f"✅ Обмен записан:\n"
+            f"📉 RUB: -{rub_amount:,.2f}\n"
+            f"📈 {target_curr}: +{target_amount:,.2f}\n"
+            f"Курс: {rate}"
+        )

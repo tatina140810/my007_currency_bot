@@ -3,6 +3,7 @@ import json
 import base64
 from openai import AsyncOpenAI
 from app.core.config import OPENAI_API_KEY
+from app.services.ai_retry import call_openai_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ async def parse_swift_document_from_image(image_bytes: bytes, mime_type: str = "
        - currency: The transaction currency (e.g., USD, EUR, RUB, KZT).
        - uetr: The Unique End-to-end Transaction Reference. This is strictly a 36-character string in the format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx. Look carefully for this exact format. If not found, return null.
        - payment_for: Remittance Information, Details of Payment (RmtInf or Ustrd field).
+       - is_swift: Boolean. Set to true ONLY if the document is a SWIFT message, international wire transfer, or ISO 20022 document (look for BIC, IBAN, SWIFT headers). Set to false if it's a local Russian payment order (Платежное поручение), a general invoice, receipt, or plain bank statement.
     3. If you find data resembling a transfer, return an array of objects in the `documents` list.
     4. Return ONLY valid JSON. If a field cannot be found, return null. Do not hallucinate data.
     
@@ -49,7 +51,8 @@ async def parse_swift_document_from_image(image_bytes: bytes, mime_type: str = "
           "amount": 1000.50,
           "currency": "USD",
           "uetr": "...",
-          "payment_for": "..."
+          "payment_for": "...",
+          "is_swift": true
         }
       ]
     }
@@ -58,8 +61,8 @@ async def parse_swift_document_from_image(image_bytes: bytes, mime_type: str = "
     try:
         base64_image = base64.b64encode(image_bytes).decode('utf-8')
         
-        response = await client.chat.completions.create(
-            model="gpt-4o-mini",
+        response = await call_openai_with_retry(
+            client=client,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {
@@ -74,9 +77,12 @@ async def parse_swift_document_from_image(image_bytes: bytes, mime_type: str = "
                     ]
                 }
             ],
-            temperature=0.0,
-            response_format={"type": "json_object"}
+            response_format={"type": "json_object"},
+            is_vision=True
         )
+        
+        if not response:
+            return None
         
         result_content = response.choices[0].message.content.strip()
         
@@ -110,15 +116,18 @@ async def parse_swift_document_from_image(image_bytes: bytes, mime_type: str = "
 async def parse_swift_document(text: str) -> dict | None:
 
     try:
-        response = await client.chat.completions.create(
-            model="gpt-4o-mini",
+        response = await call_openai_with_retry(
+            client=client,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": text}
             ],
-            temperature=0.0,
-            response_format={"type": "json_object"}
+            response_format={"type": "json_object"},
+            is_vision=False
         )
+        
+        if not response:
+            return None
         
         result_content = response.choices[0].message.content.strip()
         

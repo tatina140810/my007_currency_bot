@@ -357,3 +357,41 @@ async def cmd_normalize_currencies(update: Update, context: ContextTypes.DEFAULT
         await update.message.reply_text(f"❌ Ошибка: {e}")
     finally:
         db.set_maintenance_mode(False)
+
+async def cmd_purge_db(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Команда /purge_db
+    Очищает старые операции из локальной БД (старше 30 дней),
+    разгружая память сервера, так как история уже в Google Sheets.
+    """
+    user = update.effective_user
+    if not is_staff(user.id):
+        return
+
+    await update.message.reply_text("🗑 Запускаю очистку старых операций (>30 дней)...")
+    
+    try:
+        db.set_maintenance_mode(True)
+        import asyncio
+        await asyncio.sleep(1.0)
+        
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        
+        # SQLite modifiers: '-30 days'
+        cursor.execute("DELETE FROM operations WHERE timestamp < datetime('now', '-30 days')")
+        deleted_count = cursor.rowcount
+        
+        conn.commit()
+        conn.close()
+        
+        if deleted_count > 0:
+            await update.message.reply_text(f"✅ Удалено {deleted_count} старых операций из локальной базы.\nВсе данные сохранены в Google Sheets.")
+        else:
+            await update.message.reply_text("✅ Старых операций не найдено. База уже оптимизирована.")
+
+    except Exception as e:
+        logger.error(f"Error during purge_db: {e}")
+        await update.message.reply_text(f"❌ Ошибка очистки: {e}")
+    finally:
+        db.set_maintenance_mode(False)

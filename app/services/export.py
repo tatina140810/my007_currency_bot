@@ -277,6 +277,12 @@ def _write_operations_tables_for_chat(ws, operations: list, styles: dict, chat_i
     ops_by_type: Dict[str, List[Tuple]] = {}
     for op in operations_sorted:
         op_id, op_type, currency, amount, description, timestamp = op
+        
+        # Map internal exchange types to "Конвертация" for UI consistency
+        if op_type in ("Internal Exchange", "Manual Buy FX"):
+            op_type = "Конвертация"
+            op = (op_id, op_type, currency, amount, description, timestamp)
+            
         if op_type in ("SWIFT", "Комиссия 1%"):
             continue
         ops_by_type.setdefault(op_type, []).append(op)
@@ -713,8 +719,12 @@ def export_report_income_matrix(rows, output_path: str, report_date: str):
     comments = defaultdict(list)                    # client -> [full_message...]
 
     for client_name, cur, amt, full_msg in rows:
-        agg[client_name][cur] += float(amt)
-        totals[cur] += float(amt)
+        try:
+            val = float(amt)
+        except ValueError:
+            raise ValueError(f"Невозможно прочитать сумму '{amt}' для клиента '{client_name}'. Пожалуйста, исправьте или удалите эту строку в базе.")
+        agg[client_name][cur] += val
+        totals[cur] += val
         if full_msg:
             comments[client_name].append(str(full_msg))
 
@@ -764,5 +774,45 @@ def export_report_income_matrix(rows, output_path: str, report_date: str):
 
     _autosize(ws)
     wb.save(output_path)
+
+
+def export_back_report_to_excel(parsed_data: dict, output_path: str):
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Отчет Back"
+    
+    headers = ["Отчет Back", "Компания", "Тип", "Контрагент", "Валюта платежа", "Сумма"]
+    
+    # 1. Заголовки
+    for col_idx, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_idx, value=header)
+        cell.font = Font(bold=True)
+    
+    # 2. Данные
+    for idx, item in enumerate(parsed_data["items"], 2):
+        ws.cell(row=idx, column=1, value=item["bank"])
+        ws.cell(row=idx, column=2, value=item["company"])
+        ws.cell(row=idx, column=3, value=item["type"])
+        ws.cell(row=idx, column=4, value=item["counterparty"])
+        ws.cell(row=idx, column=5, value=item["currency"])
+        sum_cell = ws.cell(row=idx, column=6, value=item["sum"])
+        sum_cell.number_format = "0.00"
+        
+    # 3. Автоширина
+    for col in ws.columns:
+        max_length = 0
+        column = col[0].column_letter
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        adjusted_width = (max_length + 2)
+        ws.column_dimensions[column].width = min(adjusted_width, 50)
+        
+    wb.save(output_path)
+    return output_path
+
 
 

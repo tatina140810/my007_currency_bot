@@ -97,7 +97,25 @@ class Database:
                 chat_name TEXT,
                 chat_type TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                last_interaction DATETIME DEFAULT CURRENT_TIMESTAMP
+                last_interaction DATETIME DEFAULT CURRENT_TIMESTAMP,
+                last_client_message DATETIME,
+                last_staff_message DATETIME
+            )
+        ''')
+        
+        # Миграция для SLA
+        try:
+            cursor.execute("ALTER TABLE chats ADD COLUMN last_client_message DATETIME")
+            cursor.execute("ALTER TABLE chats ADD COLUMN last_staff_message DATETIME")
+        except sqlite3.OperationalError:
+            pass # Columns already exist
+
+        # NEW: таблица для сохранения текстов back_report
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS back_reports (
+                chat_id INTEGER PRIMARY KEY,
+                last_text TEXT,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ''')
 
@@ -125,8 +143,112 @@ class Database:
             )
         ''')
 
+        # NEW (AI Learning): Таблица для операций, ожидающих ручной проверки
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS pending_operations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id INTEGER,
+                message_id INTEGER,
+                text TEXT,
+                reply_context TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # NEW (AI Learning): Таблица удачных примеров (Few-Shot Prompting)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS ai_training_examples (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                original_text TEXT,
+                reply_context TEXT,
+                op_type TEXT,
+                currency TEXT,
+                amount REAL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        # NEW: Таблица для утренних/вечерних остатков Excel (Reconciliation)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS daily_balances (
+                date TEXT PRIMARY KEY,
+                morning_data TEXT,
+                evening_data TEXT,
+                processed BOOLEAN DEFAULT 0
+            )
+        ''')
+
+        # NEW: Механизм гарантированной доставки (Sync Queue)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS message_sync_queue (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id INTEGER,
+                message_id INTEGER,
+                group_type TEXT,
+                payload_json TEXT,
+                status TEXT DEFAULT 'PENDING',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
         conn.commit()
         conn.close()
+
+    def save_daily_balance(self, date: str, morning_data: str = None, evening_data: str = None, processed: bool = None):
+        """Сохранение или обновление данных по утренним/вечерним остаткам."""
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+            # Проверяем, есть ли запись
+            cursor.execute('SELECT date FROM daily_balances WHERE date = ?', (date,))
+            exists = cursor.fetchone()
+            
+            if not exists:
+                cursor.execute('''
+                    INSERT INTO daily_balances (date, morning_data, evening_data, processed)
+                    VALUES (?, ?, ?, ?)
+                ''', (date, morning_data, evening_data, processed if processed is not None else False))
+            else:
+                updates = []
+                params = []
+                if morning_data is not None:
+                    updates.append("morning_data = ?")
+                    params.append(morning_data)
+                if evening_data is not None:
+                    updates.append("evening_data = ?")
+                    params.append(evening_data)
+                if processed is not None:
+                    updates.append("processed = ?")
+                    params.append(processed)
+                
+                if updates:
+                    params.append(date)
+                    cursor.execute(f'''
+                        UPDATE daily_balances 
+                        SET {', '.join(updates)}
+                        WHERE date = ?
+                    ''', tuple(params))
+            conn.commit()
+        except Exception as e:
+            logger.error(f"Error saving daily balance: {e}")
+        finally:
+            conn.close()
+
+    def get_daily_balance(self, date: str) -> dict:
+        """Получение данных по остаткам за день."""
+        conn = self.get_connection()
+        conn.row_factory = sqlite3.Row
+        try:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM daily_balances WHERE date = ?', (date,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+        except Exception as e:
+            logger.error(f"Error fetching daily balance: {e}")
+            return None
+        finally:
+            conn.close()
 
     def load_known_chats(self):
         """Загрузка известных чатов в кэш"""
@@ -171,6 +293,203 @@ class Database:
             logger.error(f"Error registering chat {chat_id}: {e}")
             # Don't crash processing
 
+    def update_chat_sla(self, chat_id: int, is_staff: bool):
+        """Обновляет время последнего сообщения для SLA мониторинга"""
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+            column = "last_staff_message" if is_staff else "last_client_message"
+            cursor.execute(f'''
+                UPDATE chats 
+                SET {column} = CURRENT_TIMESTAMP,
+                    last_interaction = CURRENT_TIMESTAMP
+                WHERE chat_id = ?
+            ''', (chat_id,))
+            conn.commit()
+        except Exception as e:
+            logger.error(f"Error updating SLA for chat {chat_id}: {e}")
+        finally:
+            conn.close()
+
+    def get_sla_breaches(self, threshold_minutes: int) -> List[Dict]:
+        """Уведомляет о чатах, где клиент ждет ответа дольше threshold_minutes"""
+        conn = self.get_connection()
+        conn.row_factory = sqlite3.Row
+        try:
+            cursor = conn.cursor()
+            # Находим чаты, где есть сообщения от клиента, и либо стафф не отвечал вообще, 
+            # либо ответил раньше, чем последнее сообщение клиента.
+            # Плюс с момента последнего клиентского сообщения прошло больше threshold_minutes
+            
+            query = '''
+                SELECT chat_id, chat_name, last_client_message, last_staff_message
+                FROM chats
+                WHERE last_client_message IS NOT NULL
+                  AND (last_staff_message IS NULL OR last_client_message > last_staff_message)
+                  AND (julianday('now') - julianday(last_client_message)) * 24 * 60 >= ?
+            '''
+            cursor.execute(query, (threshold_minutes,))
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+        except Exception as e:
+            logger.error(f"Error fetching SLA breaches: {e}")
+            return []
+        finally:
+            conn.close()
+
+    # =========================================================
+    # AI Learning (Pending Operations & Training Examples)
+    # =========================================================
+
+    def save_pending_operation(self, chat_id: int, message_id: int, text: str, reply_context: str = None) -> int:
+        """Сохраняет операцию для ручного подтверждения."""
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO pending_operations (chat_id, message_id, text, reply_context)
+                VALUES (?, ?, ?, ?)
+            ''', (chat_id, message_id, text, reply_context))
+            conn.commit()
+            return cursor.lastrowid
+        except Exception as e:
+            logger.error(f"Error saving pending operation: {e}")
+            return None
+        finally:
+            conn.close()
+
+    def get_pending_operation(self, pending_id: int) -> dict:
+        """Получает данные по ожидающей операции."""
+        conn = self.get_connection()
+        conn.row_factory = sqlite3.Row
+        try:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM pending_operations WHERE id = ?', (pending_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+        except Exception as e:
+            logger.error(f"Error fetching pending operation: {e}")
+            return None
+        finally:
+            conn.close()
+
+    def delete_pending_operation(self, pending_id: int):
+        conn = self.get_connection()
+        try:
+            conn.execute('DELETE FROM pending_operations WHERE id = ?', (pending_id,))
+            conn.commit()
+        except Exception as e:
+            logger.error(f"Error deleting pending operation: {e}")
+        finally:
+            conn.close()
+
+    def save_ai_training_example(self, original_text: str, reply_context: str, op_type: str, currency: str, amount: float):
+        """Сохраняет успешный пример для дальнейшего обучения парсера."""
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO ai_training_examples (original_text, reply_context, op_type, currency, amount)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (original_text, reply_context, op_type, currency, amount))
+            conn.commit()
+        except Exception as e:
+            logger.error(f"Error saving training example: {e}")
+        finally:
+            conn.close()
+
+    def get_ai_training_examples(self, limit: int = 10) -> List[Dict]:
+        """Возвращает последние N примеров для Few-Shot Prompting."""
+        conn = self.get_connection()
+        conn.row_factory = sqlite3.Row
+        try:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT original_text, reply_context, op_type, currency, amount 
+                FROM ai_training_examples 
+                ORDER BY timestamp DESC LIMIT ?
+            ''', (limit,))
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+        except Exception as e:
+            logger.error(f"Error fetching training examples: {e}")
+            return []
+        finally:
+            conn.close()
+
+    # =========================================================
+    # Fallback Background Sync Queue (Zero Loss Mechanism)
+    # =========================================================
+
+    def enqueue_sync_operation(self, chat_id: int, message_id: int, group_type: str, payload_json: str) -> int:
+        """Регистрирует операцию в локальной очереди перед отправкой в Google Sheets."""
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO message_sync_queue (chat_id, message_id, group_type, payload_json, status)
+                VALUES (?, ?, ?, ?, 'PENDING')
+            ''', (chat_id, message_id, group_type, payload_json))
+            conn.commit()
+            return cursor.lastrowid
+        except Exception as e:
+            logger.error(f"Error enqueue_sync_operation: {e}")
+            return None
+        finally:
+            conn.close()
+
+    def mark_operation_synced(self, db_id: int):
+        """Отмечает успешную отправку операции в Google Sheets."""
+        if db_id is None: return
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE message_sync_queue 
+                SET status = 'SYNCED', updated_at = CURRENT_TIMESTAMP 
+                WHERE id = ?
+            ''', (db_id,))
+            conn.commit()
+        except Exception as e:
+            logger.error(f"Error mark_operation_synced: {e}")
+        finally:
+            conn.close()
+
+    def get_pending_operations(self) -> List[Dict]:
+        """Возвращает все операции которые не дошли до Google Sheets (старше 1 минуты)."""
+        conn = self.get_connection()
+        conn.row_factory = sqlite3.Row
+        try:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT * FROM message_sync_queue 
+                WHERE status = 'PENDING' 
+                AND (julianday('now') - julianday(created_at)) * 24 * 60 >= 1
+            ''')
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+        except Exception as e:
+            logger.error(f"Error fetching pending operations: {e}")
+            return []
+        finally:
+            conn.close()
+
+    def mark_operation_failed(self, db_id: int, reason: str = None):
+        """Отмечает запись в очереди как FAILED (fallback)."""
+        if db_id is None: return
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE message_sync_queue 
+                SET status = 'FAILED', updated_at = CURRENT_TIMESTAMP 
+                WHERE id = ?
+            ''', (db_id,))
+            conn.commit()
+        except Exception as e: pass
+        finally:
+            conn.close()
+
     def add_operation(
         self,
         chat_id: int,
@@ -184,33 +503,72 @@ class Database:
         Добавить операцию для конкретного чата.
         Если timestamp передан, используем его (для исторических данных или точного времени сообщения).
         """
-        conn = self.get_connection()
-        cursor = conn.cursor()
+        max_retries = 5
+        import time
+        for attempt in range(max_retries):
+            try:
+                conn = self.get_connection()
+                cursor = conn.cursor()
 
-        # Убедимся что чат зарегистрирован
-        cursor.execute('SELECT chat_id FROM chats WHERE chat_id = ?', (chat_id,))
-        if not cursor.fetchone():
-            cursor.execute('''
-                INSERT INTO chats (chat_id) VALUES (?)
-            ''', (chat_id,))
-            # Инициализация балансов
-            for curr in CURRENCIES:
+                # Убедимся что чат зарегистрирован
+                cursor.execute('SELECT chat_id FROM chats WHERE chat_id = ?', (chat_id,))
+                if not cursor.fetchone():
+                    cursor.execute('''
+                        INSERT INTO chats (chat_id) VALUES (?)
+                    ''', (chat_id,))
+                    # Инициализация балансов
+                    for curr in CURRENCIES:
+                        cursor.execute('''
+                            INSERT OR IGNORE INTO balances (chat_id, currency, balance)
+                            VALUES (?, ?, 0.0)
+                        ''', (chat_id, curr))
+
+                # Добавляем операцию
+                if timestamp:
+                    cursor.execute('''
+                        INSERT INTO operations (chat_id, operation_type, currency, amount, description, timestamp)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ''', (chat_id, operation_type, currency, amount, description, timestamp))
+                else:
+                    cursor.execute('''
+                        INSERT INTO operations (chat_id, operation_type, currency, amount, description)
+                        VALUES (?, ?, ?, ?, ?)
+                    ''', (chat_id, operation_type, currency, amount, description))
+
+                operation_id = cursor.lastrowid
+
+                # Обновляем баланс для этого чата
                 cursor.execute('''
-                    INSERT OR IGNORE INTO balances (chat_id, currency, balance)
-                    VALUES (?, ?, 0.0)
-                ''', (chat_id, curr))
+                    INSERT INTO balances (chat_id, currency, balance, last_updated)
+                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT(chat_id, currency) DO UPDATE SET
+                        balance = balance + ?,
+                        last_updated = CURRENT_TIMESTAMP
+                ''', (chat_id, currency, amount, amount))
 
-        # Добавляем операцию
-        if timestamp:
-            cursor.execute('''
-                INSERT INTO operations (chat_id, operation_type, currency, amount, description, timestamp)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (chat_id, operation_type, currency, amount, description, timestamp))
-        else:
-            cursor.execute('''
-                INSERT INTO operations (chat_id, operation_type, currency, amount, description)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (chat_id, operation_type, currency, amount, description))
+                # Обновляем время последнего взаимодействия
+                cursor.execute('''
+                    UPDATE chats SET last_interaction = CURRENT_TIMESTAMP WHERE chat_id = ?
+                ''', (chat_id,))
+
+                conn.commit()
+                conn.close()
+
+                return operation_id
+            except sqlite3.OperationalError as e:
+                if "locked" in str(e).lower() and attempt < max_retries - 1:
+                    if 'conn' in locals() and conn:
+                        try:
+                            # rollback may throw if conn is fully locked/broken, so we wrap it
+                            conn.rollback()
+                        except: pass
+                        conn.close()
+                    time.sleep(2.0)
+                    continue
+                else:
+                    if 'conn' in locals() and conn:
+                        conn.close()
+                    raise
 
     def is_duplicate_operation(self, chat_id: int, amount: float, currency: str, description: str, time_window_hours: int = 24) -> bool:
         """
@@ -233,28 +591,9 @@ class Database:
         time_mod = f"-{time_window_hours} hours"
         
         cursor.execute(sql, (chat_id, amount, currency, description, time_mod))
-        return cursor.fetchone() is not None
-
-        operation_id = cursor.lastrowid
-
-        # Обновляем баланс для этого чата
-        cursor.execute('''
-            INSERT INTO balances (chat_id, currency, balance, last_updated)
-            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-            ON CONFLICT(chat_id, currency) DO UPDATE SET
-                balance = balance + ?,
-                last_updated = CURRENT_TIMESTAMP
-        ''', (chat_id, currency, amount, amount))
-
-        # Обновляем время последнего взаимодействия
-        cursor.execute('''
-            UPDATE chats SET last_interaction = CURRENT_TIMESTAMP WHERE chat_id = ?
-        ''', (chat_id,))
-
-        conn.commit()
+        res = cursor.fetchone() is not None
         conn.close()
-
-        return operation_id
+        return res
 
     def get_balances(self, chat_id: int) -> Dict[str, float]:
         """Получить балансы для конкретного чата"""
@@ -772,6 +1111,33 @@ class Database:
             out.append((client_name, cur_, float(total_amt), full_text))
 
         return out
+
+    def save_last_back_report_text(self, chat_id: int, text: str):
+        """Сохранить последний текст для /back_report"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT OR REPLACE INTO back_reports (chat_id, last_text, updated_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+            ''', (chat_id, text))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.error(f"Error saving back_report text: {e}")
+
+    def get_last_back_report_text(self, chat_id: int) -> str | None:
+        """Получить последний сохраненный текст для /back_report"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('SELECT last_text FROM back_reports WHERE chat_id = ?', (chat_id,))
+            row = cursor.fetchone()
+            conn.close()
+            return row["last_text"] if row else None
+        except Exception as e:
+            logger.error(f"Error getting back_report text: {e}")
+            return None
 
     def migrate_legacy_data(self):
         """Миграция старых валют"""
