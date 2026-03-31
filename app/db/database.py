@@ -192,6 +192,26 @@ class Database:
             )
         ''')
 
+        # Сырые сообщения группы «Зак» за календарный день (Asia/Bishkek) для вечернего AI/regex flush
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS zak_day_buffer (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id INTEGER NOT NULL,
+                day_kg TEXT NOT NULL,
+                message_id INTEGER NOT NULL,
+                from_user_id INTEGER,
+                reply_to_message_id INTEGER,
+                text TEXT NOT NULL,
+                message_at TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                flushed_at DATETIME,
+                UNIQUE(chat_id, message_id)
+            )
+        ''')
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_zak_buffer_day ON zak_day_buffer(day_kg, flushed_at)"
+        )
+
         conn.commit()
         conn.close()
 
@@ -452,6 +472,90 @@ class Database:
             conn.commit()
         except Exception as e:
             logger.error(f"Error mark_operation_synced: {e}")
+        finally:
+            conn.close()
+
+    def zak_buffer_append(
+        self,
+        chat_id: int,
+        day_kg: str,
+        message_id: int,
+        text: str,
+        message_at: str | None = None,
+        from_user_id: int | None = None,
+        reply_to_message_id: int | None = None,
+    ) -> None:
+        """Сохраняет сырое сообщение «Зак» (день в формате YYYY-MM-DD по KG)."""
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT OR IGNORE INTO zak_day_buffer
+                (chat_id, day_kg, message_id, from_user_id, reply_to_message_id, text, message_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    chat_id,
+                    day_kg,
+                    message_id,
+                    from_user_id,
+                    reply_to_message_id,
+                    text,
+                    message_at,
+                ),
+            )
+            conn.commit()
+        except Exception as e:
+            logger.error(f"zak_buffer_append error: {e}")
+        finally:
+            conn.close()
+
+    def zak_buffer_pending_chat_ids(self, day_kg: str) -> List[int]:
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT DISTINCT chat_id FROM zak_day_buffer
+                WHERE day_kg = ? AND flushed_at IS NULL
+                ORDER BY chat_id
+                """,
+                (day_kg,),
+            )
+            return [row[0] for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
+    def zak_buffer_get_pending(self, chat_id: int, day_kg: str) -> List[Dict]:
+        conn = self.get_connection()
+        conn.row_factory = sqlite3.Row
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT * FROM zak_day_buffer
+                WHERE chat_id = ? AND day_kg = ? AND flushed_at IS NULL
+                ORDER BY message_id ASC
+                """,
+                (chat_id, day_kg),
+            )
+            return [dict(r) for r in cursor.fetchall()]
+        finally:
+            conn.close()
+
+    def zak_buffer_mark_flushed(self, chat_id: int, day_kg: str) -> None:
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                UPDATE zak_day_buffer SET flushed_at = CURRENT_TIMESTAMP
+                WHERE chat_id = ? AND day_kg = ? AND flushed_at IS NULL
+                """,
+                (chat_id, day_kg),
+            )
+            conn.commit()
         finally:
             conn.close()
 

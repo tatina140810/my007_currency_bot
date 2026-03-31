@@ -42,19 +42,16 @@ def _append_zak_operations_sync(operations: list):
 
     rows_to_append = []
     
+    import hashlib
+    
     for op in operations:
         chat_msg_id = f"{op['chat_id']}_{op['message_id']}"
         
-        # Deduplication check
-        if chat_msg_id in existing_ids and op.get("comment_only", False) == False:
-            # Note: For simplicity, if editing is required we would find and update.
-            # But normally we just skip if we already wrote this message.
-            logger.info(f"Skipping duplicate ZAK message {chat_msg_id}")
-            # If we want to support multiple ops per message, chat_msg_id is not globally unique per row.
-            # Better to use a hash or just compound ID: chat_msg_id + line text
-            pass
-            
-        uniq_id = f"{chat_msg_id}_{hash(op['raw_line'])}"
+        # Deduplication check - we use MD5 because Python's hash() is randomized per process
+        raw_str = op.get('raw_line', '') or ''
+        stable_hash = hashlib.md5(raw_str.encode('utf-8')).hexdigest()[:8]
+        uniq_id = f"{chat_msg_id}_{stable_hash}"
+        
         if uniq_id in existing_ids:
             continue
             

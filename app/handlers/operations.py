@@ -25,10 +25,13 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not message or not user or not chat:
         return
 
-    if user.is_bot or not message.text:
+    if user.is_bot:
         return
 
-    text = message.text.strip()
+    text = (message.text or message.caption or "").strip()
+    if not text:
+        return
+
     is_private = chat.type == "private"
     staff = is_staff(user.id)
 
@@ -41,6 +44,23 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # если вдруг handler текстовый перехватил, игнорируем
     if text.startswith("/") and text.lower() != "/clear all":
         return
+
+    # --- TEMPORARY FILTER: DISABLE ALL NON-CASSA GROUPS ---
+    def is_chat_allowed_for_cassa_only(chat_obj, private: bool) -> bool:
+        if private: return True
+        from app.core.config import REPORT_CHAT_ID, CONVERSION_GROUP_NAME
+        if chat_obj.id == REPORT_CHAT_ID: return True
+        if chat_obj.id in [-4032081164, -1002276756413, -4661423909]: return True # known conversion/zaprosy aliases
+        t = (chat_obj.title or "").lower()
+        if CONVERSION_GROUP_NAME.lower().replace(" ", "") in t.replace(" ", ""): return True
+        if "зак" in t: return True
+        if "остатки" in t: return True
+        if "платеж" in t: return True
+        return False
+
+    if not is_chat_allowed_for_cassa_only(chat, is_private):
+        return
+    # --------------------------------------------------------
 
     # SAVE TEXT FOR BACK_REPORT
     try:
@@ -100,14 +120,22 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         -item["amount"],
                         desc,
                     )
-            
-            # Автоматическая выгрузка списка платежей во вкладку "Платежи"
+
+        # Выгрузка в "Платежи" — независимо от bulk, проверяем по тексту
+        # Это гарантирует что любой формат "Список платежей" попадает в таблицу
+        if "список платежей" in clean_text.lower() and not is_edited:
             from app.services.parser import parse_back_report_payments
             from app.services.google_sheets import sync_payment_list_to_cassa_sheet
             import asyncio
+            import json
             parsed_payments = parse_back_report_payments(clean_text, msg_id=message.message_id)
             if parsed_payments and parsed_payments.get("items"):
-                asyncio.create_task(sync_payment_list_to_cassa_sheet(parsed_payments))
+                db_id = db.enqueue_sync_operation(
+                    chat.id, message.message_id, "payments",
+                    json.dumps(parsed_payments, default=str)
+                )
+                asyncio.create_task(sync_payment_list_to_cassa_sheet(parsed_payments, db_id=db_id))
+                logger.info(f"[PAYMENTS] Syncing {len(parsed_payments['items'])} payments to Платежи sheet")
                 
         # 2. Парсинг конвертаций для Внутреннего отчета кассы
         from app.services.parser_conversions import parse_group_conversions
@@ -152,6 +180,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         from app.services.zak_parser import parse_zak_message
         from app.services.google_sheets_zak import append_zak_operations_to_sheet
+        from app.core.config import ZAK_BUFFER_MESSAGES, ZAK_DEFER_SHEET_TO_EVENING
         import asyncio
         
         is_reply = bool(getattr(message, "reply_to_message", None) and message.reply_to_message.text)
@@ -164,6 +193,26 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             working_text = '\n'.join(combined_lines)
         else:
             working_text = clean_text
+
+        day_kg = msg_date_zak.strftime("%Y-%m-%d")
+        reply_mid = None
+        if getattr(message, "reply_to_message", None):
+            reply_mid = message.reply_to_message.message_id
+
+        if ZAK_BUFFER_MESSAGES or ZAK_DEFER_SHEET_TO_EVENING:
+            db.zak_buffer_append(
+                chat.id,
+                day_kg,
+                message.message_id,
+                working_text,
+                message_at=msg_date_zak.isoformat(),
+                from_user_id=user.id,
+                reply_to_message_id=reply_mid,
+            )
+
+        if ZAK_DEFER_SHEET_TO_EVENING:
+            logger.info("[ZAK_GROUP] Отложенная выгрузка: только буфер, лист при вечернем отчёте")
+            return
         
         parsed_zak = parse_zak_message(working_text, chat.id, message.message_id, msg_date_zak)
         
@@ -180,57 +229,65 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # =====================================================
-    # 💥 КАСТОМНЫЙ ПАРСИНГ ДЛЯ ГРУППЫ "ЗАПРОСЫ ПО ВХОД.СУММАМ И ДОКИ"
+    # 💥 ПАРСИНГ ТОЛЬКО ДЛЯ ГРУППЫ "ЗАПРОСЫ ПО ВХОД.СУММАМ И ДОКИ"
+    # Правила:
+    #   1. Только сообщения из этой конкретной группы (REPORT_CHAT_ID)
+    #   2. Только банковские уведомления о пополнении (поступили/зачислено и т.п.)
+    #   3. Никаких ответных сообщений в группу — полная тишина
+    #   4. Не обрабатываем теги, команды или прочие сообщения
     # =====================================================
     from app.core.config import REPORT_CHAT_ID
-    if chat.id == REPORT_CHAT_ID or (chat.title and "ЗАПРОСЫ ПО ВХОД" in chat.title.upper()):
+    if chat.id == REPORT_CHAT_ID:
         try:
             from app.services.zaprosy_parser import looks_like_bank_income_zaprosy, parse_zaprosy_incomes
-            from app.services.google_sheets_zaprosy import append_zaprosy_operation_async, sync_zaprosy_to_sheet
-            import asyncio
+            from app.services.google_sheets_zaprosy import sync_zaprosy_to_sheet
             from app.core.constants import KG_TZ
-            
-            logger.info(f"[ZAPROSY_GROUP] Интерцепт сообщения из: {chat.title}")
-            
-            chat_title_lower = chat.title.lower() if chat.title else ""
-            if "запросы по вход" in chat_title_lower or "запросы" in chat_title_lower:
-                import json
-                
-                # 1. Back_report list logic inside Zaprosy
-                if "--- ПЛАТЕЖИ" in clean_text:
-                    try:
-                        from app.services.parser import parse_back_report_payments
-                        from app.services.google_sheets import sync_payment_list_to_cassa_sheet
-                        parsed_payments = parse_back_report_payments(clean_text, msg_id=message.message_id)
-                        if parsed_payments and parsed_payments.get("items"):
-                            logger.info(f"[Operations] Zaprosy group intercepted payment list, pushing to Платежи: {parsed_payments}")
-                            db_id = db.enqueue_sync_operation(chat.id, message.message_id, "payments", json.dumps(parsed_payments, default=str))
-                            asyncio.create_task(sync_payment_list_to_cassa_sheet(parsed_payments, db_id=db_id))
-                    except Exception as e:
-                        logger.error(f"[Operations] Error parsing Zaprosy /back_report: {e}")
-                    return
+            import json, asyncio
 
-            if looks_like_bank_income_zaprosy(clean_text):
-                incomes = parse_zaprosy_incomes(clean_text)
-                if incomes:
-                    msg_date = getattr(message, "forward_origin", None) and getattr(message.forward_origin, "date", None)
-                    if not msg_date:
-                        msg_date = getattr(message, "forward_date", message.date)
-                    msg_date = msg_date.astimezone(KG_TZ)
-                    for inc in incomes:
-                        inc["timestamp"] = msg_date
+            logger.info(f"[ZAPROSY_GROUP] Получено сообщение из ЗАПРОСЫ группы, проверяем на банковское пополнение")
 
-                    logger.info(f"[Operations] Intercepted Zaprosy Incomes: {incomes}")
-                    import json
-                    db_id = db.enqueue_sync_operation(chat.id, message.message_id, "zaprosy", json.dumps(incomes, default=str))
-                    from app.services.google_sheets_zaprosy import sync_zaprosy_to_sheet
-                    asyncio.create_task(sync_zaprosy_to_sheet(incomes, message.message_id, db_id=db_id))
-                    return
-            
+            # Строго только банковские уведомления о поступлении
+            # Если НЕ похоже на банковское поступление — молча игнорируем
+            if not looks_like_bank_income_zaprosy(clean_text):
+                logger.info(f"[ZAPROSY_GROUP] Не является банковским пополнением — игнорировано")
+                return
+
+            incomes = parse_zaprosy_incomes(clean_text)
+            if not incomes:
+                logger.info(f"[ZAPROSY_GROUP] looks_like_bank_income=True но parse вернул пусто — игнорировано")
+                return
+
+            # Дата: берем из forward_origin (для пересланных), иначе дату самого сообщения
+            msg_date = None
+            if getattr(message, "forward_origin", None):
+                msg_date = getattr(message.forward_origin, "date", None)
+            if not msg_date:
+                msg_date = getattr(message, "forward_date", None) or getattr(message, "date", None)
+            msg_date = msg_date.astimezone(KG_TZ)
+
+            for inc in incomes:
+                inc["timestamp"] = msg_date
+                await asyncio.sleep(0.001)
+                # Записываем в локальный баланс группы ЗАПРОСЫ
+                await queue_operation(
+                    REPORT_CHAT_ID,
+                    "Поступление",
+                    inc["currency"],
+                    inc["amount"],
+                    inc["description"],
+                    timestamp=msg_date
+                )
+
+            logger.info(f"[ZAPROSY_GROUP] Записаны пополнения: {incomes}")
+
+            # Синхронизируем в Google Sheets — ЗАПРОСЫ ПО ВХОД.СУММАМ И ДОКИ
+            db_id = db.enqueue_sync_operation(chat.id, message.message_id, "zaprosy", json.dumps(incomes, default=str))
+            asyncio.create_task(sync_zaprosy_to_sheet(incomes, message.message_id, db_id=db_id))
+
         except Exception as zaprosy_err:
-            logger.error(f"[ZAPROSY_GROUP] Critical isolation exception protected main thread: {zaprosy_err}")
-            
-        # Не отвечаем и не шлем в ИИ
+            logger.error(f"[ZAPROSY_GROUP] Ошибка при обработке: {zaprosy_err}", exc_info=True)
+
+        # Всегда выходим здесь — сообщения из REPORT_CHAT_ID не идут дальше
         return
 
     # 5️⃣ АВТО-ПОСТУПЛЕНИЯ (БАНК)
@@ -281,10 +338,9 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg_date = msg_date.astimezone(KG_TZ)
 
         for cnt, income in enumerate(incomes):
-            # Вставляем искусственную задержку в миллисекунду, 
-            # чтобы ID транзакции (генерация по timestamp) не совпадали при массовом запуске
-            import time
-            time.sleep(0.001)
+            # Небольшая async-задержка, чтобы ID/таймштампы не совпадали
+            # при массовой обработке. Важно: не блокируем event loop.
+            await asyncio.sleep(0.001)
             
             await queue_operation(
                 target_chat_id,
@@ -298,7 +354,67 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(
                 f"[AUTO_INCOME] queued receipt {cnt+1}/{len(incomes)}: {income['amount']} {income['currency']} -> chat {target_chat_id} date={msg_date}"
             )
+            
+        # 💥 [NEW] ALSO Sync ANY generic bank receipt directly to Zaprosy Sheet 
+        try:
+            from app.services.zaprosy_parser import looks_like_bank_income_zaprosy, parse_zaprosy_incomes
+            from app.services.google_sheets_zaprosy import sync_zaprosy_to_sheet
+            import json, asyncio
+            if looks_like_bank_income_zaprosy(clean_text):
+                zaprosy_incomes = parse_zaprosy_incomes(clean_text)
+                if zaprosy_incomes:
+                    for inc in zaprosy_incomes:
+                        inc["timestamp"] = msg_date
+                    db_id = db.enqueue_sync_operation(target_chat_id, message.message_id, "zaprosy", json.dumps(zaprosy_incomes, default=str))
+                    asyncio.create_task(sync_zaprosy_to_sheet(zaprosy_incomes, message.message_id, db_id=db_id))
+                    logger.info(f"[ZAPROSY_GLOBAL_SYNC] Automatically routed Bank Income to Zaprosy Sheet")
+        except Exception as e:
+            logger.error(f"[ZAPROSY_GLOBAL_SYNC] Error routing generic income to Zaprosy: {e}")
+
         return
+
+    # 5️⃣-Б ВОЗВРАТЫ (Возврат перевода) — записываем как приход в ЗАПРОСЫ
+    # Формат: "AMOUNT CURRENCY - Возврат перевода..."
+    # Не попадает в looks_like_bank_income, обрабатываем отдельно
+    try:
+        from app.services.zaprosy_parser import looks_like_bank_income_zaprosy, parse_zaprosy_incomes
+        from app.services.google_sheets_zaprosy import sync_zaprosy_to_sheet
+        from app.core.constants import KG_TZ
+        import json, asyncio
+
+        if looks_like_bank_income_zaprosy(clean_text):
+            vozvrat_incomes = parse_zaprosy_incomes(clean_text)
+            if vozvrat_incomes:
+                # Use forward_date if available
+                msg_date_v = message.date
+                if getattr(message, "forward_origin", None):
+                    msg_date_v = message.forward_origin.date
+                elif getattr(message, "forward_date", None):
+                    msg_date_v = message.forward_date
+                msg_date_v = msg_date_v.astimezone(KG_TZ)
+
+                for inc in vozvrat_incomes:
+                    inc["timestamp"] = msg_date_v
+                    # Save to operations DB
+                    await queue_operation(
+                        chat.id,
+                        inc.get("type", "Возврат"),
+                        inc["currency"],
+                        inc["amount"],
+                        inc.get("description", ""),
+                        timestamp=msg_date_v
+                    )
+
+                # Write to ЗАПРОСЫ sheet
+                db_id = db.enqueue_sync_operation(
+                    chat.id, message.message_id, "zaprosy",
+                    json.dumps(vozvrat_incomes, default=str)
+                )
+                asyncio.create_task(sync_zaprosy_to_sheet(vozvrat_incomes, message.message_id, db_id=db_id))
+                logger.info(f"[VOZVRAT] Routed {len(vozvrat_incomes)} Возврат(ы) from chat {chat.id} to ЗАПРОСЫ sheet")
+                return
+    except Exception as _ve:
+        logger.error(f"[VOZVRAT] Error: {_ve}")
 
     if staff:
         bulk = parse_bulk_pp_payments(clean_text)
@@ -317,17 +433,34 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     -item["amount"],
                     desc,
                 )
-            if is_private:
-                from app.services.parser import parse_back_report_payments
-                from app.services.google_sheets import sync_payment_list_to_cassa_sheet
-                import asyncio
-                
-                parsed_payments = parse_back_report_payments(clean_text)
-                if parsed_payments and parsed_payments.get("items"):
-                    asyncio.create_task(sync_payment_list_to_cassa_sheet(parsed_payments))
-                    await safe_reply(message, "✅ Bulk платежи обработаны и выгружены в таблицу Платежи")
-                else:
-                    await safe_reply(message, "✅ Bulk платежи обработаны")
+
+        # Выгрузка в "Платежи" — независимо от bulk, активируется по тексту
+        if "список платежей" in clean_text.lower():
+            from app.services.parser import parse_back_report_payments
+            from app.services.google_sheets import sync_payment_list_to_cassa_sheet
+            from app.core.constants import KG_TZ
+            import asyncio
+            import json
+
+            parsed_payments = parse_back_report_payments(clean_text, msg_id=message.message_id)
+            if parsed_payments and parsed_payments.get("items"):
+                msg_date_p = message.date
+                if getattr(message, "forward_date", None):
+                    msg_date_p = message.forward_date
+                msg_date_p = msg_date_p.astimezone(KG_TZ)
+
+                for item in parsed_payments["items"]:
+                    item["timestamp"] = msg_date_p.isoformat()
+
+                db_id = db.enqueue_sync_operation(
+                    chat.id, message.message_id, "payments",
+                    json.dumps(parsed_payments, default=str)
+                )
+                asyncio.create_task(sync_payment_list_to_cassa_sheet(parsed_payments, db_id=db_id))
+                logger.info(f"[PAYMENTS] Synced {len(parsed_payments['items'])} items from private chat to Платежи sheet")
+                await safe_reply(message, f"✅ Загружено {len(parsed_payments['items'])} платежей в таблицу «Платежи»")
+            else:
+                await safe_reply(message, "⚠️ Список платежей распознан, но строки не удалось распарсить. Проверьте формат.")
             return
 
     # =====================================================

@@ -250,106 +250,32 @@ def fetch_daily_sums(target_date: datetime.date) -> dict:
 
 def process_evening_reconciliation(date_str: str) -> str:
     """
-    Основная логика вечерней сверки.
+    Вечерняя сверка: проверяет данные утра и вечера из DB и возвращает статус.
+    Запись в Google Sheets выполняется отдельно через write_cash_report.py
+    и _update_balance_in_sheet (уже вызваны в documents.py).
     """
     db_rec = db.get_daily_balance(date_str)
-    if not db_rec or not db_rec.get("morning_data") or not db_rec.get("evening_data"):
-        return "Не хватает данных (Утро или Вечер) для расчетов."
-        
-    morning = json.loads(db_rec["morning_data"])
-    evening = json.loads(db_rec["evening_data"])
-    
+    if not db_rec:
+        return f"Данные за {date_str} не найдены в базе."
+
+    morning = json.loads(db_rec.get("morning_data") or "{}")
+    evening = json.loads(db_rec.get("evening_data") or "{}")
+
+    if not morning or not evening:
+        return "Недостаточно данных (нет утра или вечера) для сверки."
+
     target_date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
-    
-    # Собираем суммы
-    def fetch_job():
-        return fetch_daily_sums(target_date)
-        
-    sums = _execute_with_retry(fetch_job)
-    
-    # Формируем запись в Google Sheet
-    def write_job():
-        _apply_time_patch()
-        gc = _get_gc()
-        sh = gc.open_by_key(CASSA_SPREADSHEET_ID)
-        sheet_name = "отчет по остаткам"
-        try:
-            ws = sh.worksheet(sheet_name)
-        except gspread.exceptions.WorksheetNotFound:
-            ws = sh.add_worksheet(title=sheet_name, rows=1000, cols=8)
-            
-        # Прагматично находим последнюю строку для отступа
-        existing_values = ws.col_values(1)
-        last_row = 0
-        for i, val in enumerate(existing_values):
-            if str(val).strip():
-                last_row = i + 1
-                
-        # Стартовая строка для нового блока
-        start_row = last_row + 1 
-        if last_row > 1 and str(existing_values[-1]).strip() != "":
-            start_row += 1
+    td_str = target_date.strftime("%d.%m.%Y")
 
-        td_str = target_date.strftime('%d.%m.%Y')
-        zap_f = f'=IFERROR(INDEX(\'ЗАПРОСЫ ПО ВХОД.СУММАМ И ДОКИ\'!E:E; MAX(FILTER(ROW(\'ЗАПРОСЫ ПО ВХОД.СУММАМ И ДОКИ\'!A:A); LEFT(\'ЗАПРОСЫ ПО ВХОД.СУММАМ И ДОКИ\'!A:A; 10)="{td_str}"))); 0)'
-        
-        row_3 = start_row + 2
-        row_last_calc = start_row + 8
-        r_calc = start_row + 9
-        r_fact = start_row + 10
-        # Native dynamic formulas for Conversions mapping - Do not use text wildcards (*) on Date columns!
-        conv_rub_exp = f'=-SUMIFS(\'конвертации\'!F:F; \'конвертации\'!A:A; "{td_str}")'
-        conv_usd_inc = f'=SUMIFS(\'конвертации\'!C:C; \'конвертации\'!A:A; "{td_str}"; \'конвертации\'!D:D; "*usd*") + SUMIFS(\'конвертации\'!C:C; \'конвертации\'!A:A; "{td_str}"; \'конвертации\'!D:D; "*доллар*")'
-        conv_eur_inc = f'=SUMIFS(\'конвертации\'!C:C; \'конвертации\'!A:A; "{td_str}"; \'конвертации\'!D:D; "*eur*") + SUMIFS(\'конвертации\'!C:C; \'конвертации\'!A:A; "{td_str}"; \'конвертации\'!D:D; "*евро*")'
-        conv_cny_inc = f'=SUMIFS(\'конвертации\'!C:C; \'конвертации\'!A:A; "{td_str}"; \'конвертации\'!D:D; "*cny*") + SUMIFS(\'конвертации\'!C:C; \'конвертации\'!A:A; "{td_str}"; \'конвертации\'!D:D; "*юань*")'
-        conv_tenge_inc = f'=SUMIFS(\'конвертации\'!C:C; \'конвертации\'!A:A; "{td_str}"; \'конвертации\'!D:D; "*kzt*") + SUMIFS(\'конвертации\'!C:C; \'конвертации\'!A:A; "{td_str}"; \'конвертации\'!D:D; "*тенге*")'
+    lines = [f"📊 Сверка за {td_str}:"]
+    for curr in ["Рубли", "USD", "Евро", "CNY", "тенге"]:
+        m = morning.get(curr, 0) or 0
+        e = evening.get(curr, 0) or 0
+        if m or e:
+            lines.append(f"  {curr}: утро {m:,.2f} → вечер {e:,.2f}")
 
-        block = [
-            [f"Дата: {td_str}", "", "", "", "", ""],
-            ["", "Рубли", "USD", "Евро", "CNY", "тенге"],
-            ["Остаток Утро", morning.get("Рубли",0), morning.get("USD",0), morning.get("Евро",0), morning.get("CNY",0), morning.get("тенге",0)],
-            ["Входящие суммы", zap_f, sums["inputs"].get("USD",0), sums["inputs"].get("Евро",0), sums["inputs"].get("CNY",0), sums["inputs"].get("тенге",0)],
-            ["Конвертации (расход)", conv_rub_exp, 0, 0, 0, 0],
-            ["Конвертации (приход)", 0, conv_usd_inc, conv_eur_inc, conv_cny_inc, conv_tenge_inc],
-            ["Платежи (расход)", -sums["payments"].get("Рубли",0), -sums["payments"].get("USD",0), -sums["payments"].get("Евро",0), -sums["payments"].get("CNY",0), -sums["payments"].get("тенге",0)],
-            ["Swift комиссия", -sums["swift_commissions"].get("Рубли",0), -sums["swift_commissions"].get("USD",0), -sums["swift_commissions"].get("Евро",0), -sums["swift_commissions"].get("CNY",0), -sums["swift_commissions"].get("тенге",0)],
-            ["Процент снятия и пополнения", -sums["zak_commissions"].get("Рубли",0), -sums["zak_commissions"].get("USD",0), -sums["zak_commissions"].get("Евро",0), -sums["zak_commissions"].get("CNY",0), -sums["zak_commissions"].get("тенге",0)],
-            ["Расчетный вечер", f"=SUM(B{row_3}:B{row_last_calc})", f"=SUM(C{row_3}:C{row_last_calc})", f"=SUM(D{row_3}:D{row_last_calc})", f"=SUM(E{row_3}:E{row_last_calc})", f"=SUM(F{row_3}:F{row_last_calc})"],
-            ["Фактический вечер", evening.get("Рубли",0), evening.get("USD",0), evening.get("Евро",0), evening.get("CNY",0), evening.get("тенге",0)],
-            ["Разница", f"=B{r_calc}-B{r_fact}", f"=C{r_calc}-C{r_fact}", f"=D{r_calc}-D{r_fact}", f"=E{r_calc}-E{r_fact}", f"=F{r_calc}-F{r_fact}"],
-            ["", "", "", "", "", ""]
-        ]
+    lines.append("\n✅ Данные обновлены в листе «отчет по остаткам».")
 
-        try:
-            ws.update(range_name=f"A{start_row}", values=block, value_input_option="USER_ENTERED")
-        except TypeError:
-            ws.update(f"A{start_row}", block, value_input_option="USER_ENTERED")
-            
-        updated_values = ws.col_values(1)
-        requests = []
-        for i, val in enumerate(updated_values):
-            if "Дата:" in str(val):
-                requests.append({
-                    "repeatCell": {
-                        "range": {
-                            "sheetId": ws.id, "startRowIndex": i, "endRowIndex": i + 1, "startColumnIndex": 0, "endColumnIndex": 6
-                        },
-                        "cell": {
-                            "userEnteredFormat": {
-                                "backgroundColor": {"red": 1.0, "green": 1.0, "blue": 0.8},
-                                "textFormat": {"bold": True}
-                            }
-                        },
-                        "fields": "userEnteredFormat(backgroundColor,textFormat)"
-                    }
-                })
-        
-        if requests:
-            try:
-                sh.batch_update({"requests": requests})
-            except Exception as e:
-                logger.error(f"Failed to apply highlight formatting: {e}")
-                
-    _execute_with_retry(write_job)
     db.save_daily_balance(date_str, processed=True)
-    return "Сверка загружена в таблицу."
+    return "\n".join(lines)
+

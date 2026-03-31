@@ -279,7 +279,8 @@ def _sync_payment_list_thread(parsed_data: dict):
             item.get("currency", ""),     # Валюта платежа (E)
             item.get("sum", 0.0),         # Сумма (F)
             formula_commission,           # Комиссия банка (Formula G)
-            target_msg_id                 # Msg ID (Col H)
+            target_msg_id,                # Msg ID (Col H)
+            date_str                      # Дата (Col I) - For SUMIFS linking
         ])
         next_row_index += 1
         
@@ -310,8 +311,9 @@ def _append_operation_sync_logic(op_data: dict):
         op_data.get("id", ""), op_data.get("type", ""), op_data.get("currency", ""),
         float(op_data.get("amount", 0.0)), op_data.get("description", ""), op_data.get("timestamp", "")
     ])
-
-    _sync_balances_sync_logic()
+    # Не пересобираем вкладку "Balances" на каждую операцию.
+    # Обновление делается батчером (sync_all_balances_to_sheet) после обработки очереди,
+    # чтобы снизить нагрузку на Google Sheets.
 
 
 def _sync_balances_sync_logic():

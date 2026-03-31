@@ -555,78 +555,147 @@ def parse_back_report_payments(text: str, msg_id: Optional[int] = None) -> Dict:
     """
     Парсит список платежей для /back_report.
     Возвращает dict с датой и списком строк.
+
+    Алгоритм (two-pass, устойчивый к):
+    - Многословным полям плательщика (Денис Биш, Фин.инфра -СЗ и т.д.)
+    - Хвостовым аннотациям после валюты (- еще не подписан)
     """
     if not text:
         return {"date": datetime.now(KG_TZ).strftime("%d.%m.%Y"), "items": [], "msg_id": msg_id}
-    
+
+    KNOWN_GROUPS = ["Денис Биш", "Медигрупп", "Трейд Шоп", "АТЕКС", "Фин.инфра -СЗ",
+                    "Профлайн", "УЗ", "Шол", "Трейд"]
+    KNOWN_PREFIXES = {
+        "денис": "Денис Биш",
+        "уз": "УЗ",
+        "медигрупп": "Медигрупп",
+        "шол": "Шол",
+        "трейд шоп": "Трейд Шоп",
+        "трейд": "Трейд",
+        "атекс": "АТЕКС",
+        "фин.инфра": "Фин.инфра -СЗ",
+        "профлайн": "Профлайн",
+    }
+
+    CURRENCY_RE = re.compile(
+        r"(?<!\w)(EUR|USD|CNY|AED|KZT|KGS|RUB|USDT)(?!\w)", re.IGNORECASE
+    )
+    # Matches: "1. ", "2) ", "1  ", "2  " etc. at start of line
+    NUMBERED_LINE_RE = re.compile(r"^\d+(?:[.)]\s+|\s{2,})")
+
+    def norm_group(raw: str) -> str:
+        raw = (raw or "").strip()
+        low = raw.lower()
+        for prefix, canonical in KNOWN_PREFIXES.items():
+            if low.startswith(prefix):
+                return canonical
+        return raw
+
+    def parse_amount_str(s: str) -> float:
+        s = s.strip().replace(" ", "").replace("=", "")
+        # Convert dash-decimal: 43019-63 → 43019.63
+        s = re.sub(r"-(\d+)$", r".\1", s)
+        s = s.replace(",", ".")
+        try:
+            return float(s)
+        except Exception:
+            return 0.0
+
     lines = [ln.strip() for ln in text.split("\n") if ln.strip()]
-    
+
     date_str = datetime.now(KG_TZ).strftime("%d.%m.%Y")
     bank_candidate = ""
     company_candidate = ""
-    last_non_payment_lines = []
-    
+    last_non_payment_lines: list = []
     items = []
-    
-    payment_re = re.compile(
-        r"^(?:\d+[.)]?\s+)?([А-Яа-яA-Za-z]+)\s+(.+?)\s+([\d\s.,]+(?:-\d+)?=?)\s+([A-Za-zА-Яа-я€$¥]{2,10})(?:\s+[\d.,]+)?$"
-    )
-    
+
+    # Count naturally-numbered lines to detect parse failures later
+    numbered_line_count = sum(1 for ln in lines if NUMBERED_LINE_RE.match(ln))
+
     for ln in lines:
+        # ---- Date header ----
         if "список платежей" in ln.lower():
-            # Извлекаем дату: "Список платежей на 10.03.2026"
-            m = re.search(r'(\d{2}\.\d{2}\.\d{4})', ln)
+            m = re.search(r"(\d{2}\.\d{2}\.\d{4})", ln)
             if m:
                 date_str = m.group(1)
             continue
-            
-        match = payment_re.match(ln)
-        if match:
-            num_non_payments = len(last_non_payment_lines)
-            if num_non_payments >= 2:
-                bank_candidate = last_non_payment_lines[-2]
-                company_candidate = last_non_payment_lines[-1]
-            elif num_non_payments == 1:
-                company_candidate = last_non_payment_lines[0]
-            
-            last_non_payment_lines = []
-            
-            left_block, receiver, p_sum_raw, p_currency = match.groups()
-            
-            # Use norm_group to standardize company prefixes exactly like parse_bulk_pp_payments 
-            def norm_group(raw: str) -> str:
-                raw = (raw or "").strip()
-                low = raw.lower()
-                if low.startswith("денис"):
-                    return "Денис Биш"
-                if low.startswith("уз"):
-                    return "УЗ"
-                if low.startswith("медигрупп"):
-                    return "Медигрупп"
-                return raw
-                
-            p_type = norm_group(left_block)
-            p_counterparty = receiver.strip()
-            
-            s = p_sum_raw.replace(' ', '').replace('=', '')
-            s = re.sub(r'-(\d+)$', r'.\1', s)
-            s = s.replace(',', '.')
-            try:
-                amt = float(s)
-            except:
-                amt = 0.0
-                
-            items.append({
-                "bank": bank_candidate,
-                "company": company_candidate,
-                "type": p_type,
-                "counterparty": p_counterparty,
-                "currency": p_currency,
-                "sum": amt
-            })
-        else:
+
+        # ---- Is this a payment line? ----
+        # Strip optional leading index ("1  ", "2. ")
+        bare = NUMBERED_LINE_RE.sub("", ln).strip()
+
+        # Find currency code position (anchor)
+        curr_match = CURRENCY_RE.search(bare)
+        if not curr_match:
             last_non_payment_lines.append(ln)
-            
+            continue
+
+        # Everything before the currency code is "prefix  COUNTERPARTY  AMOUNT"
+        pre = bare[: curr_match.start()].strip()
+        p_currency = curr_match.group(1).upper()
+
+        # Split prefix into tokens by 2+ spaces (columns are separated by multiple spaces)
+        # Typical: "Денис Биш  GUANGDONG MEIAO HOME TECH CO.,LT  43019-63"
+        multi_space_parts = re.split(r"\s{2,}", pre)
+
+        if len(multi_space_parts) >= 3:
+            # Last token = amount, middle tokens = counterparty, first = group
+            group_raw = multi_space_parts[0]
+            counterparty_raw = "  ".join(multi_space_parts[1:-1])
+            amount_raw = multi_space_parts[-1]
+        elif len(multi_space_parts) == 2:
+            # Could be "GROUP  AMOUNT" (counterparty missing) or "GROUP+COUNTERPARTY  AMOUNT"
+            group_raw = multi_space_parts[0]
+            amount_raw = multi_space_parts[-1]
+            counterparty_raw = ""
+        else:
+            # Single block — fall back to last word as amount
+            parts = pre.rsplit(None, 1)
+            if len(parts) == 2:
+                group_raw, amount_raw = parts
+                counterparty_raw = ""
+            else:
+                last_non_payment_lines.append(ln)
+                continue
+
+        amt = parse_amount_str(amount_raw)
+        # If amount parse failed and counterparty is non-empty, the last counterparty word might be the amount
+        if amt == 0.0 and counterparty_raw:
+            ct_parts = counterparty_raw.rsplit(None, 1)
+            if len(ct_parts) == 2:
+                attempt = parse_amount_str(ct_parts[-1])
+                if attempt > 0:
+                    amt = attempt
+                    counterparty_raw = ct_parts[0]
+
+        p_type = norm_group(group_raw)
+        p_counterparty = counterparty_raw.strip()
+
+        # Update bank / company context
+        num_non_payments = len(last_non_payment_lines)
+        if num_non_payments >= 2:
+            bank_candidate = last_non_payment_lines[-2]
+            company_candidate = last_non_payment_lines[-1]
+        elif num_non_payments == 1:
+            company_candidate = last_non_payment_lines[0]
+        last_non_payment_lines = []
+
+        items.append({
+            "bank": bank_candidate,
+            "company": company_candidate,
+            "type": p_type,
+            "counterparty": p_counterparty,
+            "currency": p_currency,
+            "sum": amt,
+        })
+
+    # Sanity check: warn if we parsed fewer items than there were numbered lines
+    if numbered_line_count > 0 and len(items) < numbered_line_count:
+        logger.warning(
+            f"[parse_back_report_payments] Parsed {len(items)} items but found "
+            f"{numbered_line_count} numbered lines in text — possible missed records!"
+        )
+
     return {"date": date_str, "items": items, "msg_id": msg_id}
 
 def parse_implicit_conversion(text: str, reply_text: str) -> Optional[Dict]:

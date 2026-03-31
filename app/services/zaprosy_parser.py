@@ -38,7 +38,7 @@ def parse_human_number_zaprosy(s: str) -> float:
 
 def extract_currency_from_str_zaprosy(s: str, default: str = "RUB") -> str:
     low = s.lower()
-    if any(x in low for x in ["usd", "$", "доллар", "бакс", "cent"]): return "USD"
+    if any(x in low for x in ["usd", "$", "доллар", "бакс", "cent", "долл"]): return "USD"
     if any(x in low for x in ["eur", "€", "евро"]): return "EUR"
     if any(x in low for x in ["cny", "юан", "yuan", "rmb", "¥"]): return "CNY"
     if any(x in low for x in ["aed", "дирхам"]): return "AED"
@@ -48,10 +48,22 @@ def extract_currency_from_str_zaprosy(s: str, default: str = "RUB") -> str:
     if any(x in low for x in ["rub", "₽", "руб", "рск", "деревян"]): return "RUB"
     return default
 
+# Regex: "AMOUNT CURRENCY - Возврат ..."
+# Example: "11074,00 USD - Возврат перевода на РСК, заявление №260304/004/268"
+_VOZVRAT_RE = re.compile(
+    r"(?P<amount>\d[\d\s\u00A0\u202F]*(?:[.,]\d{1,2})?)\s*"
+    r"(?P<curr>₽|р\.?|руб(?:\.|ля|лей)?|rub|usd|\$|долл|eur|€|kzt|cny|юан(?:ь|я|ей)?|¥|aed|дирх(?:ам|ама|амов)?|kgs|usdt)"
+    r"\s*[-–—]\s*возврат",
+    re.IGNORECASE,
+)
+
 def looks_like_bank_income_zaprosy(text: str) -> bool:
     t = _norm_ws_zaprosy(text or "").lower().strip()
     if t.startswith(("оплата", "взнос", "выдача", "фикс", "запрос", "список платежей")) or "список платежей" in t:
         return False
+    # Возврат format: "AMOUNT CURRENCY - Возврат ..."
+    if _VOZVRAT_RE.search(t):
+        return True
     income_words = bool(re.search(r"\b(поступ\w*|зачисл\w*|получен\w*|приход\w*|пришли)\b", t))
     bank_markers = any(k in t for k in (
         "перевод spfs", "перевод finline", "согл. п.п.", "п.п.",
@@ -68,34 +80,57 @@ def parse_zaprosy_incomes(text: str) -> List[Dict]:
     if not text:
         return []
     text = _norm_ws_zaprosy(text)
+    results = []
+
+    # ── Pattern 1: "AMOUNT CURRENCY - Возврат ..." ─────────────────────────
+    for m in _VOZVRAT_RE.finditer(text):
+        amount = parse_human_number_zaprosy(m.group("amount"))
+        if amount <= 0:
+            continue
+        currency = extract_currency_from_str_zaprosy(m.group("curr"))
+        # Description: surrounding context
+        start_pos = max(0, m.start() - 20)
+        desc_text = text[start_pos:start_pos + 200].strip()
+        if len(desc_text) > 150:
+            desc_text = desc_text[:147] + "..."
+        results.append({
+            "type": "Возврат",
+            "amount": amount,
+            "currency": currency,
+            "description": f"Возврат: {desc_text}"
+        })
+
+    # ── Pattern 2: classic bank income keywords ────────────────────────────
     if not re.search(r"\b(поступ\w*|зачисл\w*|получен\w*|приход\w*|пришли)\b", text.lower()):
-        return []
-        
+        return results  # no classic keywords — only return Возврат hits above
+
     money_re = re.compile(
         r"(?P<amount>\d[\d\s\u00A0\u202F]*(?:[.,]\d{1,2})?)\s*"
         r"(?P<curr>₽|r\.?|руб(?:\.|ля|лей)?|rub|RUB|сом(?:\.|ов)?|kgs|usdt|usd|\$|eur|€|kzt|cny|юан(?:ь|я|ей)?|¥|aed|дирх(?:ам|ама|амов)?)\b",
         re.IGNORECASE,
     )
-    
-    results = []
+
     segments = re.split(r'(?://-|\n-)', text)
     if len(segments) <= 1:
         segments = [text]
-        
+
     for seg in segments:
         if not re.search(r"\b(поступ\w*|зачисл\w*|получен\w*|приход\w*|пришли)\b", seg.lower()):
             continue
         m = money_re.search(seg)
         if m:
             amount = parse_human_number_zaprosy(m.group("amount"))
-            if amount <= 0: continue
+            if amount <= 0:
+                continue
             currency = extract_currency_from_str_zaprosy(m.group("curr"))
             desc_text = seg.strip()
-            if len(desc_text) > 150: desc_text = desc_text[:147] + "..."
+            if len(desc_text) > 150:
+                desc_text = desc_text[:147] + "..."
             results.append({
                 "type": "Поступление",
                 "amount": amount,
                 "currency": currency,
                 "description": f"Авто-приход (SMS/Notif): {desc_text}"
             })
+
     return results

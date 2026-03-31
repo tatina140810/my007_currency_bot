@@ -3,7 +3,6 @@ import logging
 from collections import defaultdict
 from app.db.instance import db
 from app.services.balance import invalidate_balance_cache
-from app.services.n8n import send_to_n8n
 from app.services.google_sheets import append_operation_to_sheet, sync_all_balances_to_sheet, append_client_operation_to_sheet
 from app.services.parser import normalize_group_name
 
@@ -36,7 +35,9 @@ async def process_operation_batch():
         async with queue_lock:
             if not operation_queue:
                 continue
-            queue_snapshot = dict(operation_queue)
+            # Atomically "claim" all currently queued chats.
+            # This prevents lost operations if new items arrive while we're processing.
+            queue_snapshot = {chat_id: operation_queue.pop(chat_id, []) for chat_id in list(operation_queue.keys())}
 
         for chat_id, operations in queue_snapshot.items():
             try:
@@ -61,15 +62,7 @@ async def process_operation_batch():
                         timestamp=op.get("timestamp")
                     )
                     
-                    # Offload to n8n webhook asynchronously
-                    _fire_and_forget(send_to_n8n({
-                        "chat_id": chat_id,
-                        "type": op["type"],
-                        "currency": op["currency"],
-                        "amount": op["amount"],
-                        "description": op["description"],
-                        "timestamp": op.get("timestamp").isoformat() if op.get("timestamp") else None
-                    }))
+                    # All data goes directly to Google Sheets below — no n8n needed
                     
                     # Fetching the chat name safely to pass to Google Sheets
                     chat_name = f"Chat_{chat_id}"
@@ -112,10 +105,6 @@ async def process_operation_batch():
                 logger.info(f"Обработано {len(operations)} операций для чата {chat_id}")
             except Exception:
                 logger.exception(f"Ошибка записи операций для чата {chat_id}")
-            finally:
-                async with queue_lock:
-                    if chat_id in operation_queue:
-                         del operation_queue[chat_id]
         
         # Sync group balances to Google Sheets ONCE after the entire batch is done
         if queue_snapshot:

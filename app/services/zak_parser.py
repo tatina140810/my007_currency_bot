@@ -66,8 +66,7 @@ def parse_zak_message(text: str, chat_id: int, message_id: int, msg_date) -> lis
         if not line:
             continue
             
-        # Detect Header
-        # "СНЯТИЯ РСК:", "ПОПОЛНЕНИЯ БАКАЙ: (долл)"
+        # Detect Header (Single line, e.g. "СНЯТИЯ РСК:", "ПОПОЛНЕНИЯ БАКАЙ: (долл)")
         header_match = re.match(r'(?i)(СНЯТИ[ЕЯ]\s+|ПОПОЛНЕНИ[ЕЯ]\s+)(РСК|БАКАЙ)(.*)', line)
         if header_match:
             op_str = header_match.group(1).strip().lower()
@@ -85,6 +84,21 @@ def parse_zak_message(text: str, chat_id: int, message_id: int, msg_date) -> lis
                 current_currency = curr
             else:
                 current_currency = None # Reset if not found
+            continue
+            
+        # Detect split headers (e.g. "СНЯТИЯ:\nБАКАЙ:")
+        type_match = re.match(r'(?i)^(СНЯТИ[ЕЯ]|ПОПОЛНЕНИ[ЕЯ])\s*:?\s*$', line)
+        if type_match:
+            op_str = type_match.group(1).lower()
+            if 'сняти' in op_str:
+                current_type = 'Снятие'
+            elif 'пополнени' in op_str:
+                current_type = 'Пополнение'
+            continue
+            
+        bank_match = re.match(r'(?i)^(РСК|БАКАЙ)\s*:?\s*$', line)
+        if bank_match:
+            current_bank = bank_match.group(1).upper()
             continue
 
         # Look for operation lines like:

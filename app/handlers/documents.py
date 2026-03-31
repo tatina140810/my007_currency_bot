@@ -155,24 +155,91 @@ async def handle_uploaded_excel(update: Update, context: ContextTypes.DEFAULT_TY
         if is_morning and data["totals_m"]:
             totals_json = json.dumps(data["totals_m"], ensure_ascii=False)
             db.save_daily_balance(db_date_str, morning_data=totals_json)
+            # Update "Остаток Утро" row in отчет по остаткам
+            try:
+                from app.handlers.balance_input import _update_balance_in_sheet
+                await asyncio.to_thread(_update_balance_in_sheet, "morning", data["totals_m"], target_date_obj)
+                logger.info(f"[Excel] Сводки morning updated for {target_date_obj}")
+            except Exception as upd_err:
+                logger.warning(f"[Excel] Сводки morning update failed: {upd_err}")
             if message.chat.type == "private":
-                await safe_reply(message, f"🌅 Утренние остатки за {target_date_obj.strftime('%d.%m.%Y')} успешно сохранены из вкладки '{data['morning_sheet_name']}'.\n(Жду вечерний отчет для сверки)")
-            
+                lines = "\n".join(f"  • {k}: {v:,.2f}" for k, v in (data["totals_m"] or {}).items() if v)
+                await safe_reply(message,
+                    f"🌅 Утренние остатки за {target_date_obj.strftime('%d.%m.%Y')} сохранены из вкладки '{data['morning_sheet_name']}':\n{lines}\n\nОбновлено в отчёте по остаткам.")
+
         if is_evening and data["totals_e"]:
             totals_json = json.dumps(data["totals_e"], ensure_ascii=False)
             db.save_daily_balance(db_date_str, evening_data=totals_json)
-            if message.chat.type == "private":
-                await safe_reply(message, f"🌇 Вечерние остатки за {target_date_obj.strftime('%d.%m.%Y')} приняты из вкладки '{data['evening_sheet_name']}'. Запускаю сверку с таблицами...")
-            
-            # Запускаем сверку
+            # Update "Фактический вечер" row in отчет по остаткам
             try:
-                result_text = await asyncio.to_thread(process_evening_reconciliation, db_date_str)
-                if message.chat.type == "private":
-                    await safe_reply(message, result_text)
+                from app.handlers.balance_input import _update_balance_in_sheet
+                await asyncio.to_thread(_update_balance_in_sheet, "evening", data["totals_e"], target_date_obj)
+                logger.info(f"[Excel] Сводки evening updated for {target_date_obj}")
+            except Exception as upd_err:
+                logger.warning(f"[Excel] Сводки evening update failed: {upd_err}")
+            if message.chat.type == "private":
+                lines = "\n".join(f"  • {k}: {v:,.2f}" for k, v in (data["totals_e"] or {}).items() if v)
+                await safe_reply(message,
+                    f"🌇 Вечерние остатки за {target_date_obj.strftime('%d.%m.%Y')} приняты из вкладки '{data['evening_sheet_name']}':\n{lines}\n\nЗапускаю сверку...")
+
+            # ── Step 1: Flush any pending ЗАПРОСЫ/ZAK ops into sheets ────────────────────
+            # This must run BEFORE fill_report_block so all income is visible in the sheet.
+            try:
+                from app.services.reconciliation import reconcile_pending_operations
+                await reconcile_pending_operations()
+                logger.info("[Excel] Pre-fill reconciler pass complete")
             except Exception as e:
-                logger.error(f"Reconciliation error: {e}")
+                logger.error(f"[Excel] Pre-fill reconciler failed (continuing anyway): {e}")
+
+            try:
+                from app.services.zak_day_flush import flush_zak_buffers_for_report_date
+                await flush_zak_buffers_for_report_date(db_date_str)
+                logger.info(f"[Excel] ZAK day buffer flush for {db_date_str}")
+            except Exception as zfe:
+                logger.error(f"[Excel] ZAK buffer flush failed (continuing anyway): {zfe}")
+
+            # ── Step 2: Auto-fill the report block from source sheets ────────────────────
+            # Reads ЗАПРОСЫ, Проценты_детально, Платежи and writes into «отчет по остаткам»
+            try:
+                # Ensure the report block exists for this date.
+                # Evening uploads can happen before any manual morning inputs.
+                import sys, subprocess
+                project_dir = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+                write_script = os.path.join(project_dir, "scripts", "write_cash_report.py")
+                date_for_script = target_date_obj.strftime("%d.%m.%Y")
+                try:
+                    await asyncio.to_thread(
+                        subprocess.run,
+                        [sys.executable, write_script, date_for_script],
+                        {"cwd": project_dir, "check": True},
+                    )
+                except Exception as ensure_err:
+                    logger.warning(f"[Excel] Failed to ensure report block via write_cash_report: {ensure_err}")
+
+                import gspread
+                from app.services.google_sheets import _apply_time_patch
+                from app.services.fill_report_from_sheets import fill_report_block
+                from app.core.config import CASSA_SPREADSHEET_ID
+
+                def _fill_job():
+                    _apply_time_patch()
+                    credentials_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "n8n-google-credentials.json")
+                    credentials_file = os.path.abspath(credentials_file)
+                    gc = gspread.service_account(filename=credentials_file)
+                    sh = gc.open_by_key(CASSA_SPREADSHEET_ID)
+                    return fill_report_block(sh, target_date_obj)
+
+                fill_result = await asyncio.to_thread(_fill_job)
+                logger.info(f"[Excel] Draft report filled: {fill_result}")
                 if message.chat.type == "private":
-                    await safe_reply(message, f"❌ Ошибка при формировании отчета по остаткам:\n{e}")
+                    await safe_reply(message, f"📊 Черновой отчёт:\n{fill_result}")
+            except Exception as fe:
+                logger.error(f"[Excel] fill_report_block error: {fe}")
+                if message.chat.type == "private":
+                    await safe_reply(message, f"⚠️ Черновой отчёт заполнен частично: {fe}")
+
+
+
                 
     except Exception as e:
         logger.error(f"Error handling Excel upload: {e}")

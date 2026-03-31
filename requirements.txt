@@ -4,3 +4,5 @@ Pillow
 pytesseract
 openai
 PyMuPDF
+gspread
+google-auth

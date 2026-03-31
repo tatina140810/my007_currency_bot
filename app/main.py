@@ -20,6 +20,7 @@ from app.handlers.utils import is_staff
 from app.handlers.base import start, help_command, cancel_any, error_handler, handle_message_reaction
 from app.handlers.reports import cmd_rep, show_balance, show_history, export_operations, cmd_sum, cmd_balances, general_button_callback, cmd_back_report
 from app.handlers.operations import handle_text
+from app.handlers.balance_input import handle_private_balance
 from app.handlers.admin import undo_last_operation, undo_select_operation, cancel_undo, handle_delete_password, cmd_chats, cmd_clear_all, cmd_fix_balances, cmd_verify_integrity, cmd_normalize_currencies, cmd_purge_db
 from app.handlers.pending import handle_ai_learning_callback, handle_balance_sync_callback
 from app.handlers.documents import handle_uploaded_excel
@@ -227,11 +228,14 @@ def main():
     application.add_handler(MessageHandler(filters.Regex(r"^/"), fallback_command_handler), group=0)
 
     # Текстовые обработчики
+    # handle_private_balance: group=-1 (highest priority — intercepts private balance msgs)
+    application.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE & ~filters.COMMAND, handle_private_balance), group=-1)
+
     # handle_delete_password: group=1 (prioritize password check)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_delete_password), group=1)
     
     # handle_text: group=2 (general operations)
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text), group=2)
+    application.add_handler(MessageHandler((filters.TEXT | filters.PHOTO | filters.Document.ALL) & ~filters.COMMAND, handle_text), group=2)
 
     # handle_uploaded_excel: group=3 (excel files for reconciliation)
     application.add_handler(MessageHandler(filters.Document.FileExtension("xlsx"), handle_uploaded_excel), group=3)
@@ -244,7 +248,22 @@ def main():
         
         from app.services.reconciliation import reconcile_pending_operations
         app.job_queue.run_repeating(reconcile_pending_operations, interval=900, first=60)
-        logger.info("Фоновая задача батчинга, SLA мониторинг и фоновый синхронизатор-реконсилятор (15мин) запущены")
+
+        # Final evening re-check at 23:00 KG time:
+        # Re-syncs Платежи / Конвертации / pending ЗАПРОСЫ ops and recalculates
+        # "отчет по остаткам" to produce the authoritative end-of-day report.
+        import datetime
+        from zoneinfo import ZoneInfo
+        from app.services.edit_check import recheck_and_resync_all_chats
+        _KG_TZ = ZoneInfo("Asia/Bishkek")
+        app.job_queue.run_daily(
+            recheck_and_resync_all_chats,
+            time=datetime.time(23, 0, tzinfo=_KG_TZ),
+            name="night_final_recheck",
+        )
+
+        logger.info("Фоновая задача батчинга, SLA мониторинг, реконсилятор (15мин) и итоговый пересчёт (23:00) запущены")
+
 
     async def post_shutdown(app: Application):
         global batch_task, sla_task

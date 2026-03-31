@@ -58,7 +58,10 @@ async def reconcile_pending_operations(context=None):
                 from app.services.google_sheets import sync_conversions_to_cassa_sheet
                 payload = json.loads(op['payload_json'])
                 logger.warning(f"[Recon] DB_ID:{op['id']} (conversions) verified MISSING. Pushing fallback payload.")
-                await sync_conversions_to_cassa_sheet(payload, db_id=op['id'])
+                try:
+                    await sync_conversions_to_cassa_sheet(payload, db_id=op['id'])
+                except Exception as e:
+                    logger.error(f"[Recon] conversions fallback push failed for DB_ID={op['id']}: {e}", exc_info=True)
                 
     # 3. Reconcile Payments (MSG_ID Col H -> Index 8)
     if "payments" in by_type:
@@ -72,7 +75,10 @@ async def reconcile_pending_operations(context=None):
                 from app.services.google_sheets import sync_payment_list_to_cassa_sheet
                 payload = json.loads(op['payload_json'])
                 logger.warning(f"[Recon] DB_ID:{op['id']} (payments) verified MISSING. Pushing fallback payload.")
-                await sync_payment_list_to_cassa_sheet(payload, db_id=op['id'])
+                try:
+                    await sync_payment_list_to_cassa_sheet(payload, db_id=op['id'])
+                except Exception as e:
+                    logger.error(f"[Recon] payments fallback push failed for DB_ID={op['id']}: {e}", exc_info=True)
                 
     # 4. Reconcile Zak (MSG_ID Col O -> Index 15)
     if "zak" in by_type:
@@ -91,7 +97,10 @@ async def reconcile_pending_operations(context=None):
                             item['date'] = datetime.fromisoformat(item['date'])
                         except Exception: pass
                 logger.warning(f"[Recon] DB_ID:{op['id']} (zak) verified MISSING. Pushing fallback payload.")
-                await append_zak_operations_to_sheet(payload, db_id=op['id'])
+                try:
+                    await append_zak_operations_to_sheet(payload, db_id=op['id'])
+                except Exception as e:
+                    logger.error(f"[Recon] zak fallback push failed for DB_ID={op['id']}: {e}", exc_info=True)
 
     # 5. Reconcile Zaprosy (MSG_ID Col I -> Index 9)
     if "zaprosy" in by_type:
@@ -106,4 +115,7 @@ async def reconcile_pending_operations(context=None):
                 from app.services.google_sheets_zaprosy import sync_zaprosy_to_sheet
                 payload = json.loads(op['payload_json'])
                 logger.warning(f"[Recon] DB_ID:{op['id']} (zaprosy) verified MISSING. Pushing fallback payload.")
-                await sync_zaprosy_to_sheet(payload, message_id=op['message_id'], db_id=op['id'])
+                try:
+                    await sync_zaprosy_to_sheet(payload, message_id=op['message_id'], db_id=op['id'])
+                except Exception as e:
+                    logger.error(f"[Recon] zaprosy fallback push failed for DB_ID={op['id']}: {e}", exc_info=True)
